@@ -187,10 +187,30 @@ A member who no longer has a verified email matching the team's domains gets **2
 
 ## Social
 
-- Feed, comments and reactions, visible to everyone on the team. **Decided**
+- Feed, comments and reactions, visible to everyone on the team. The feed lives in the History tab. **Decided**
 - Reactions can be any emoji. **Decided**
 - Push notifications for comments and reactions. **Decided**
 - Users can turn notification types off in settings. **Proposed**
+
+## Navigation and Home
+
+- Bottom tabs, left to right: **Team · Calendar · Home · History · Profile**, with Home in the middle. Native tabs (Liquid Glass on iOS 26, Material on Android). **Decided**
+- Style follows the Equinox reference: dark-leaning, typography-led, flat lists, small uppercase monospace labels, team-color glow. **Decided**
+- Home, top to bottom: account (left) and team switcher (right); goal cards (**Your week**, **Team**, swipeable); leaderboard; a "Log a session" bar above the tab bar. **Decided**
+- **History is the feed**: every session on the team, with comments and reactions, filterable to **Everyone** (default), **My workouts**, one person, or a chosen list of people. There is no separate Feed tab. **Decided**
+- No search for now. **Decided**
+
+### Leaderboard
+
+- Each person has a horizontal **bar**. For credits, the full width is the team's **max** (e.g. Penn: 300 min-equivalent), and a vertical line marks the **target** (e.g. 120). **Decided**
+- With no max set, the full width is target + 50%, and the end of the bar is left unlabeled. **Decided**
+- Anyone past the end of the bar gets a full bar with a » marker; the number shows their real total. **Decided**
+- Going over the max is a gentle caution, not praise: that bar (and the » marker) is muted orange. Teams without a max have no caution state; going past target + 50% just shows the » marker in the team color. **Decided**
+- The max is the most people *should* do, not a limit: sessions above it still count. **Decided**
+- For minutes, distance and sessions (no targets), bars are relative to the leader. **Decided**
+- Bars past the target use the team color; bars short of it are grey. People short of the target show "X to go". **Decided**
+- Two dropdowns: period (the team's period or season) and metric (credits, minutes, distance, sessions). The target and cap lines only show for credits. **Decided**
+- Home shows the top 10 plus your own row (highlighted, pinned if you're outside the top 10), with "See all" for the full list. **Decided**
 
 ## Open questions
 
