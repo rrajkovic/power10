@@ -39,7 +39,7 @@ export default function SignUp() {
   return (
     <Screen centered>
       <Title>Create your account</Title>
-      <Muted>We'll email you a code to confirm it's you.</Muted>
+      <Muted>We’ll email you a code to confirm it’s you.</Muted>
 
       <TextField
         label="Full name"

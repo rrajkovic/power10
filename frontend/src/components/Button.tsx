@@ -42,7 +42,27 @@ export function Button({
   );
 }
 
+// A plain text link-style button, for secondary actions like "Resend code".
+export function TextButton({ title, onPress, disabled = false }: Omit<ButtonProps, 'loading' | 'variant'>) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      style={({ pressed }) => [pressed && styles.pressed, disabled && styles.disabled]}
+    >
+      <Text style={styles.textLink}>{title}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  textLink: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
   base: {
     borderRadius: radius.md,
     paddingVertical: spacing.lg,
