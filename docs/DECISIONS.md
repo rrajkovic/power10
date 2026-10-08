@@ -176,6 +176,15 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Using an invite joins the team instantly (the school-email requirement still applies). **Decided**
 - Admins can reset links and codes, e.g. after a leak. **Decided**
 
+## Look and feel
+
+- The app has a light and a dark theme. It follows the phone's setting by default, and users can override it in settings (Light / Dark / System). The choice is saved on the device. **Decided**
+- Each team has a **primary** accent color (required, app default until set) and an optional **secondary** accent color. **Decided**
+- Teams can pick from ~15 preset colors with generic names (Red, Navy, Gold…) or enter any hex code. **Decided**
+- Admins change the team colors, like other team settings. **Decided**
+- Team colors are used for the blurred background glow, progress bars, highlights and primary buttons. Body text, backgrounds and error messages always use the app's own colors, so any team color stays readable. Text on team-colored buttons is black or white, picked automatically for contrast. **Decided**
+- Without a secondary color, the glow uses two shades of the primary. **Decided**
+
 ## Social
 
 - Feed, comments and reactions, visible to everyone on the team. **Decided**

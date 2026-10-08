@@ -92,6 +92,8 @@ Which notification types (comments, reactions, …) a user has turned off.
 | target_period | `week` (default), `two_weeks` or `month` |
 | require_email_domain | On/off |
 | allowed_domains | List, e.g. `upenn.edu`; subdomains are allowed automatically |
+| accent_primary | Team color as a hex code, e.g. `#011F5B`; required, defaults to `#0033A0` |
+| accent_secondary | Optional second team color (hex) |
 | created_at | |
 
 ### memberships
