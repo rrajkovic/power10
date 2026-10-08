@@ -39,13 +39,13 @@ row only if they're an active member of that team.
 ## 1. People
 
 ### profiles
-One per account. Its id is the Supabase Auth user id.
+One per account. Its id is the Supabase Auth user id. Whether the account has a
+password comes from the `has_password()` function (it asks Supabase Auth), not a column.
 
 | Column | Meaning |
 |---|---|
 | name | Display name |
-| avatar | Profile picture (storage path) |
-| has_password | False until a password is set; unfinished sign-ups are sent back to the password screen |
+| avatar_path | Profile picture (storage path) |
 | created_at | |
 
 ### user_emails
@@ -59,7 +59,11 @@ Every email on an account, primary and secondary.
 | verified_at | Empty = not verified; unverified emails count for nothing |
 
 Enforced by the database:
-- An email appears only once in the whole table: **one email = one account**.
+- A **verified** email appears only once in the whole table: **one email = one account**.
+  Unverified claims don't block anyone (so nobody can squat someone else's school
+  email); when an address is verified, other accounts' unverified claims are removed.
+- Sign-up is blocked for an address another account has verified (Auth hook
+  `hook_before_user_created`).
 - An account has exactly one primary and at most one secondary.
 
 Supabase Auth also keeps the primary email; this table mirrors it so the
@@ -100,7 +104,7 @@ Who is on which team, and as what.
 | is_admin | Always true for coaches (enforced) |
 | joined_at | Decides who inherits admin when the last athlete admin leaves |
 | grace_until | Set when the team's email requirement isn't met; 2 weeks out |
-| hidden | True after the grace period ends; member and team can't see each other |
+| (locked out) | Not stored: a member is locked out once `grace_until` has passed; member and team can't see each other |
 
 ### invites
 One active athlete invite and one active coach invite per team.
@@ -147,7 +151,8 @@ How a type + intensity earns credits.
 | intensity | Empty = the default rule for this type |
 | kind | `per_session`, `per_time` or `per_distance` |
 | credits | Credits awarded (one decimal) |
-| per_amount | For per-time/per-distance: e.g. 10 minutes, 2000 m |
+| per_minutes | For per_time: e.g. 10 (1 credit per 10 minutes) |
+| per_meters | For per_distance: e.g. 2000 (1 credit per 2 km) |
 
 Examples:
 
@@ -223,7 +228,8 @@ One row per athlete per workout.
 | logged_by | The athlete, or the admin who logged it |
 | group_log_id | Shared by all rows created in one group/whole-team log |
 | verification_status | `not_needed`, `pending`, `passed`, `flagged`, `rejected` |
-| reviewed_by, review_note | Admin override (never on their own session) |
+| verification_note | The AI's reason when it flags a session |
+| reviewed_by, reviewed_at, review_note | Admin override (never on their own session) |
 | created_at, updated_at | |
 
 Counting rule: **every session counts unless its status is `rejected`.**
@@ -278,3 +284,6 @@ The AI's work queue and log. Works the same whether OCR or an API reads the phot
 4. **A group log creates one session per athlete**, linked by `group_log_id`, so each athlete appears normally in the feed, leaderboard and verification.
 5. **No sample/demo rows in real data.** A demo is its own team.
 6. **Calculated, not stored:** credit totals, target progress, leaderboards. They're SQL views/functions over `sessions`.
+7. **Membership changes go through functions**, not direct table writes: `create_team`, `join_team`, `set_member_role`, `set_member_admin`, `remove_member`, `leave_team`, `delete_team`, `reset_invite`, `review_session`. They enforce the role rules in DECISIONS.md.
+8. **Default credit rule:** every default activity type starts at 1 credit per 10 minutes; admins change it.
+9. **A coach who is turned back into an athlete stays an admin** until a coach removes that separately.
