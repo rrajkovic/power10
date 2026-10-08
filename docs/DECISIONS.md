@@ -45,6 +45,9 @@ Change a rule here first, then in the code.
   - **OAuth (Google, Apple):** passwordless
   - **Magic link or 6-digit code** sent to the primary email: passwordless
 - Passwordless is only for signing in. Creating an account always requires setting a password. **Decided**
+- Sign-up asks for full name, email and password. **Decided**
+- Passwords must be at least 8 characters, with no other rules. Enforced by Supabase Auth, not just the app. **Decided**
+- Codes appear only inside the email, never in the subject line (lock-screen privacy). **Decided**
 - Sign in with Apple is offered alongside Google (Apple requires it in the iOS app when Google sign-in is offered). **Decided**
 - Forgot password: sign in passwordless, then set a new password in account settings. **Proposed**
 - Secondary emails are added and verified by a 6-digit code or magic link. Unverified emails count for nothing. **Decided**
