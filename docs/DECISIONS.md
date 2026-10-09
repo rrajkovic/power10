@@ -194,17 +194,17 @@ A member who no longer has a verified email matching the team's domains gets **2
 
 ## Social
 
-- Feed, comments and reactions, visible to everyone on the team. The feed lives in the History tab. **Decided**
+- Feed, comments and reactions, visible to everyone on the team. The feed lives in the Feed tab. **Decided**
 - Reactions can be any emoji. **Decided**
 - Push notifications for comments and reactions. **Decided**
 - Users can turn notification types off in settings. **Proposed**
 
 ## Navigation and Home
 
-- Bottom tabs, left to right: **Team · Calendar · Home · History · Profile**, with Home in the middle. Native tabs (Liquid Glass on iOS 26, Material on Android). **Decided**
+- Bottom tabs, left to right: **Team · Calendar · Home · Feed · Profile**, with Home in the middle. Native tabs (Liquid Glass on iOS 26, Material on Android). **Decided**
 - Style follows the Equinox reference: dark-leaning, typography-led, flat lists, small uppercase monospace labels, team-color glow. **Decided**
 - Home, top to bottom: account (left) and team switcher (right); goal cards (**Your week**, **Team**, swipeable); leaderboard; a "Log a session" bar above the tab bar. **Decided**
-- **History is the feed**: every session on the team, with comments and reactions, filterable to **Everyone** (default), **My workouts**, one person, or a chosen list of people. There is no separate Feed tab. **Decided**
+- **Feed**: every session on the team, with comments and reactions, filterable to **Everyone** (default), **My workouts** (your history), one person, or a chosen list of people. **Decided**
 - No search for now. **Decided**
 
 ### Leaderboard
