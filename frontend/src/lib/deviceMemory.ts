@@ -30,6 +30,25 @@ export function rememberSignedIn(): void {
   }
 }
 
+const CURRENT_TEAM_KEY = 'power10.currentTeam';
+
+// The team the app shows, for people on several teams.
+export function currentTeamId(): string | null {
+  try {
+    return storage()?.getItem(CURRENT_TEAM_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberCurrentTeam(teamId: string): void {
+  try {
+    storage()?.setItem(CURRENT_TEAM_KEY, teamId);
+  } catch {
+    // Best effort: without it the app opens your first team.
+  }
+}
+
 const RESETTING_PASSWORD_KEY = 'power10.resettingPassword';
 
 // Someone signed in with a "forgot password" code but hasn't set a new

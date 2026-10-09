@@ -11,6 +11,8 @@ type SessionState = {
   needsPassword: boolean;
   // True when needsPassword comes from "forgot password".
   resettingPassword: boolean;
+  // True briefly after signing in, while we ask whether the account has a password.
+  isCheckingPassword: boolean;
   // Call after the password has been saved.
   passwordSet: () => void;
 };
@@ -76,6 +78,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const hasPassword =
     passwordCheck && passwordCheck.userId === userId ? passwordCheck.hasPassword : null;
   const needsPassword = !!session && (resettingPassword || hasPassword === false);
+  const isCheckingPassword = !!session && !needsPassword && hasPassword === null;
 
   function passwordSet() {
     setResettingPassword(false);
@@ -85,7 +88,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   return (
     <SessionContext
-      value={{ session, isLoading, needsPassword, resettingPassword, passwordSet }}
+      value={{
+        session,
+        isLoading,
+        needsPassword,
+        resettingPassword,
+        isCheckingPassword,
+        passwordSet,
+      }}
     >
       {children}
     </SessionContext>

@@ -179,6 +179,9 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Each team has separate invite links and codes for athletes and for coaches. **Decided**
 - Using an invite joins the team instantly (the school-email requirement still applies). **Decided**
 - Admins can reset links and codes, e.g. after a leak. **Decided**
+- Signed-in users who aren't on any team (or only on teams they're locked out of) see onboarding: **Join a team** (code or pasted invite link, with a preview of the team and role before joining) or **Create a team** (name and your role; time zone taken from the phone). **Decided**
+- Codes aren't case-sensitive. **Decided**
+- The app remembers which team you last viewed on this device; otherwise it opens the team you joined first. **Decided**
 
 ## Look and feel
 
