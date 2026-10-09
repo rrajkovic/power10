@@ -1,7 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Button } from '@/components/Button';
+import { Divider } from '@/components/Divider';
 import { Screen } from '@/components/Screen';
+import { SocialSignIn } from '@/components/SocialSignIn';
+import { SwitchAuthLink } from '@/components/SwitchAuthLink';
 import { TextField } from '@/components/TextField';
 import { ErrorText, Muted, Title } from '@/components/Typography';
 import { supabase } from '@/lib/supabase';
@@ -78,6 +81,15 @@ export default function SignUp() {
       {error ? <ErrorText>{error}</ErrorText> : null}
 
       <Button title="Sign up" onPress={handleSignUp} loading={loading} />
+
+      <Divider label="or" />
+      <SocialSignIn onMessage={setError} />
+
+      <SwitchAuthLink
+        question="Already have an account?"
+        action="Sign in"
+        onPress={() => router.replace('/sign-in')}
+      />
     </Screen>
   );
 }

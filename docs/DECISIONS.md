@@ -39,24 +39,28 @@ Change a rule here first, then in the code.
   - **OAuth (Google, Apple):** the provider has already verified the email. The user must then create and confirm a password.
   - **Email + password:** the user enters an email and a password, then receives one email containing both a magic link and a 6-digit code. Either one verifies the email.
 - Nobody gets into the app until the email is verified and a password is set. Every account has a password. **Decided**
-- An account that verified its email but never set a password is sent straight back to the password screen on its next sign-in. **Proposed**
-- Sign-in after that, three options. **Decided**
+- An account without a password (a Google/Apple sign-up that didn't finish) only sees the "Create your password" screen until it sets one, even after closing the app. **Decided**
+- Sign-in after that, two options. **Decided**
   - **Email + password**
-  - **OAuth (Google, Apple):** passwordless
-  - **Magic link or 6-digit code** sent to the primary email: passwordless
-- Passwordless is only for signing in. Creating an account always requires setting a password. **Decided**
+  - **OAuth (Google, Apple):** the only passwordless way in
+- There is no sign-in by emailed link or code. Emailed codes are only for confirming a new account and for "forgot password". **Decided**
 - Sign-up asks for full name, email and password. **Decided**
 - Passwords must be at least 8 characters, with no other rules. Enforced by Supabase Auth, not just the app. **Decided**
 - Codes appear only inside the email, never in the subject line (lock-screen privacy). **Decided**
+- Signed-out users land on **sign-in**. On a device where nobody has ever signed in, they land on **sign-up** instead (probably a new user). **Decided**
+- Sign-in offers email + password, Continue with Apple, Continue with Google, and a "Create an account" link. Sign-up offers the same Apple/Google buttons and an "Already have an account? Sign in" link. **Decided**
+- Signing in to an account whose email was never confirmed sends a fresh code and opens the code screen. **Decided**
+- A wrong email or password shows the same message ("Wrong email or password."), so the form can't reveal who has an account. **Decided**
 - Sign in with Apple is offered alongside Google (Apple requires it in the iOS app when Google sign-in is offered). **Decided**
-- Forgot password: sign in passwordless, then set a new password in account settings. **Proposed**
+- Forgot password: enter your email, get a 6-digit code, enter it, then set a new password before using the app. Closing the app doesn't skip that step. The new password must differ from the old one. **Decided**
+- The password-reset email contains only the code (no link): a link would open a web page that can't sign in to the app. **Decided**
 - Secondary emails are added and verified by a 6-digit code or magic link. Unverified emails count for nothing. **Decided**
 - A school or personal email can be either primary or secondary. **Decided**
 - Any verified secondary can be swapped to primary; the old primary becomes secondary. The password stays with the account. **Decided**
-- Email + password and passwordless sign-in use the primary email only; secondary emails are for proving membership, not login. **Decided**
+- Email + password sign-in and password resets use the primary email only; secondary emails are for proving membership, not login. **Decided**
 - OAuth sign-in is tied to the Google/Apple account, so it keeps working after a swap even if that email is now the secondary. **Decided**
 - One email belongs to at most one account, as primary or secondary. Sign-up is blocked for an email already claimed as someone's secondary. **Decided**
-- Verification emails contain both a magic link and a 6-digit code (a link opened on a laptop can't sign in the phone app, so the user types the code instead). **Decided**
+- Sign-up confirmation emails contain both a link and a 6-digit code (a link opened on a laptop can't sign in the phone app, so the user types the code instead). **Decided**
 - Swapping the primary requires verifying the new primary email again at the moment of the swap (link or code), even though it was already verified as a secondary. **Decided**
 
 ## Team email requirement

@@ -11,7 +11,9 @@ import { supabase } from '@/lib/supabase';
 const RESEND_SECONDS = 60;
 
 export default function Verify() {
-  const { email } = useLocalSearchParams<{ email?: string }>();
+  // purpose: 'signup' confirms a new account, 'reset' is "forgot password".
+  const { email, purpose } = useLocalSearchParams<{ email?: string; purpose?: 'signup' | 'reset' }>();
+  const isReset = purpose === 'reset';
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function Verify() {
 
   function goBack() {
     if (router.canGoBack()) router.back();
-    else router.replace('/sign-up');
+    else router.replace(isReset ? '/forgot-password' : '/sign-up');
   }
 
   // Opened /verify directly, without coming from sign-up.
@@ -46,7 +48,11 @@ export default function Verify() {
     setVerifying(true);
     setError(null);
     setNotice(null);
-    const { error } = await supabase.auth.verifyOtp({ email: email!, token, type: 'email' });
+    const { error } = await supabase.auth.verifyOtp({
+      email: email!,
+      token,
+      type: isReset ? 'recovery' : 'email',
+    });
     setVerifying(false);
 
     if (error) {
@@ -54,12 +60,15 @@ export default function Verify() {
       setShakeKey((key) => key + 1);
       setCode('');
     }
-    // On success Supabase signs you in, and the gate in _layout.tsx opens the app.
+    // On success Supabase signs you in, and the gate in _layout.tsx opens the
+    // app (or, after a reset, the "set a new password" screen).
   }
 
   async function handleResend() {
     setError(null);
-    const { error } = await supabase.auth.resend({ type: 'signup', email: email! });
+    const { error } = isReset
+      ? await supabase.auth.resetPasswordForEmail(email!)
+      : await supabase.auth.resend({ type: 'signup', email: email! });
     if (error) return setError(error.message);
     setNotice('We sent you a new code.');
     setSecondsLeft(RESEND_SECONDS);
@@ -67,7 +76,7 @@ export default function Verify() {
 
   return (
     <Screen centered>
-      <Title>Check your email</Title>
+      <Title>{isReset ? 'Reset your password' : 'Check your email'}</Title>
       <Muted>We sent a 6-digit code to</Muted>
       <Body style={{ marginBottom: spacing.md }}>{email}</Body>
 
