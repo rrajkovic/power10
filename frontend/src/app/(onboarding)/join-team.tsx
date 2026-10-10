@@ -5,7 +5,8 @@ import { Button, TextButton } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { Body, ErrorText, Muted, Title } from '@/components/Typography';
-import { colors, radius, spacing } from '@/constants/theme';
+import { radius, spacing, type Palette } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useTeams, type MemberRole } from '@/lib/teams';
 
@@ -24,6 +25,7 @@ function inviteFrom(input: string): string {
 }
 
 export default function JoinTeam() {
+  const styles = useThemedStyles(makeStyles);
   const { refresh, selectTeam } = useTeams();
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -123,13 +125,14 @@ export default function JoinTeam() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    card: {
+      gap: spacing.sm,
+      padding: spacing.lg,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+  });

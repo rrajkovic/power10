@@ -26,6 +26,12 @@ begin
 end;
 $$;
 
+-- "Today" for the Penn test team (New York). current_date is UTC, which can
+-- already be tomorrow there, and sessions can't be logged in the future.
+create temp table today_ny on commit drop as
+  select (now() at time zone 'America/New_York')::date as d;
+grant select on today_ny to authenticated;
+
 -- coach, athlete (Penn), outsider (another team)
 select pg_temp.new_user('00000000-0000-0000-0000-00000000000c', 'coach@upenn.edu');
 select pg_temp.new_user('00000000-0000-0000-0000-00000000000a', 'athlete@gmail.com');
@@ -37,7 +43,7 @@ select pg_temp.new_user('00000000-0000-0000-0000-00000000000f', 'outsider@gmail.
 -- ---------------------------------------------------------------------------
 
 select is(
-  (select count(*)::int from public.profiles),
+  (select count(*)::int from public.profiles where id::text like '00000000-0000-0000-0000-%'),
   4, 'Every sign-up gets a profile'
 );
 select is(
@@ -127,7 +133,7 @@ select is(
 select throws_ok(
   $$ insert into public.sessions (team_id, athlete_id, activity_type_id, session_date, duration_seconds)
      values ((select id from penn), '00000000-0000-0000-0000-00000000000f',
-             (select id from public.activity_types limit 1), current_date, 600) $$,
+             (select id from public.activity_types limit 1), (select d from today_ny), 600) $$,
   '42501', null, 'An outsider can''t log a session on another team'
 );
 reset role;
@@ -149,7 +155,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 insert into public.sessions (id, team_id, athlete_id, activity_type_id, intensity_id, session_date, duration_seconds)
 values ('10000000-0000-0000-0000-000000000001', (select id from penn),
         '00000000-0000-0000-0000-00000000000a', (select erg from ids), (select steady from ids),
-        current_date - 1, 1542);
+        (select d from today_ny) - 1, 1542);
 
 select is(
   (select credits from public.sessions where id = '10000000-0000-0000-0000-000000000001'),
@@ -161,17 +167,17 @@ select is(
 );
 select throws_ok(
   $$ insert into public.sessions (team_id, athlete_id, activity_type_id, session_date, duration_seconds, credits)
-     values ((select id from penn), '00000000-0000-0000-0000-00000000000a', (select erg from ids), current_date, 600, 99) $$,
+     values ((select id from penn), '00000000-0000-0000-0000-00000000000a', (select erg from ids), (select d from today_ny), 600, 99) $$,
   '42501', null, 'The app can''t send credits'
 );
 select throws_ok(
   $$ insert into public.sessions (team_id, athlete_id, activity_type_id, session_date, duration_seconds)
-     values ((select id from penn), '00000000-0000-0000-0000-00000000000b', (select erg from ids), current_date, 600) $$,
+     values ((select id from penn), '00000000-0000-0000-0000-00000000000b', (select erg from ids), (select d from today_ny), 600) $$,
   '42501', null, 'An athlete can''t log a session for someone else'
 );
 select throws_ok(
   $$ insert into public.sessions (team_id, athlete_id, activity_type_id, session_date, duration_seconds)
-     values ((select id from penn), '00000000-0000-0000-0000-00000000000a', (select erg from ids), current_date + 2, 600) $$,
+     values ((select id from penn), '00000000-0000-0000-0000-00000000000a', (select erg from ids), (select d from today_ny) + 2, 600) $$,
   'Sessions can''t be logged in the future'
 );
 select throws_ok(
@@ -196,7 +202,7 @@ values ((select id from penn), (select erg from ids), (select hard from ids), 'p
 insert into public.sessions (id, team_id, athlete_id, activity_type_id, intensity_id, session_date, duration_seconds)
 values ('10000000-0000-0000-0000-000000000002', (select id from penn),
         '00000000-0000-0000-0000-00000000000a', (select erg from ids), (select hard from ids),
-        current_date, 1800);
+        (select d from today_ny), 1800);
 
 select is(
   (select credits from public.sessions where id = '10000000-0000-0000-0000-000000000002'),
@@ -215,7 +221,7 @@ select is(
 -- Coach's own session, then reviews.
 insert into public.sessions (id, team_id, athlete_id, activity_type_id, session_date, duration_seconds)
 values ('10000000-0000-0000-0000-000000000003', (select id from penn),
-        '00000000-0000-0000-0000-00000000000c', (select erg from ids), current_date, 600);
+        '00000000-0000-0000-0000-00000000000c', (select erg from ids), (select d from today_ny), 600);
 select throws_ok(
   $$ select public.review_session('10000000-0000-0000-0000-000000000003', true) $$,
   'You can''t review your own session'

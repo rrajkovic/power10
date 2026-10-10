@@ -12,6 +12,7 @@ import { useSession } from './session';
 import { supabase } from './supabase';
 
 export type MemberRole = Database['public']['Enums']['member_role'];
+export type TargetPeriod = Database['public']['Enums']['target_period'];
 
 export type MyTeam = {
   id: string;
@@ -21,6 +22,8 @@ export type MyTeam = {
   accentPrimary: string;
   accentSecondary: string | null;
   timeZone: string;
+  // How often targets reset: week, two_weeks or month.
+  targetPeriod: TargetPeriod;
 };
 
 type TeamsState = {
@@ -40,7 +43,7 @@ const TeamsContext = createContext<TeamsState | null>(null);
 async function loadTeams(userId: string): Promise<MyTeam[]> {
   const { data, error } = await supabase
     .from('memberships')
-    .select('role, is_admin, teams(id, name, accent_primary, accent_secondary, time_zone)')
+    .select('role, is_admin, teams(id, name, accent_primary, accent_secondary, time_zone, target_period)')
     .eq('user_id', userId)
     .order('joined_at');
 
@@ -62,6 +65,7 @@ async function loadTeams(userId: string): Promise<MyTeam[]> {
             accentPrimary: membership.teams.accent_primary,
             accentSecondary: membership.teams.accent_secondary,
             timeZone: membership.teams.time_zone,
+            targetPeriod: membership.teams.target_period,
           },
         ]
       : [],

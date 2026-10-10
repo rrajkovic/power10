@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router, SplashScreen, Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { hasSignedInBefore } from '@/lib/deviceMemory';
@@ -7,13 +8,20 @@ import { TeamsProvider, useTeams } from '@/lib/teams';
 // Keep the splash screen up until we know where to send the user.
 SplashScreen.preventAutoHideAsync();
 
+// Fetches and caches data from Supabase for every screen.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000 } },
+});
+
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <TeamsProvider>
-        <RootNavigator />
-      </TeamsProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        <TeamsProvider>
+          <RootNavigator />
+        </TeamsProvider>
+      </SessionProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -57,6 +65,8 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={stage === 'ready'}>
         <Stack.Screen name="(app)" />
+        {/* Slides up over the tabs. */}
+        <Stack.Screen name="log" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={stage === 'no-team'}>
         <Stack.Screen name="(onboarding)" />

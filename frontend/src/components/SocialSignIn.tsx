@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppleLogo } from '@/components/icons/AppleLogo';
 import { GoogleLogo } from '@/components/icons/GoogleLogo';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
+import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/lib/theme';
 
 type SocialSignInProps = {
   // Shows a message on the screen (e.g. an error from the provider).
@@ -12,6 +13,8 @@ type SocialSignInProps = {
 // "Continue with Apple / Google". Used on both sign-in and sign-up: for these
 // providers there's no difference, the account is created on first use.
 export function SocialSignIn({ onMessage }: SocialSignInProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   // TODO: connect once the Google and Apple providers are set up in Supabase.
   function notReady(provider: string) {
     onMessage(`Sign in with ${provider} is coming soon.`);
@@ -42,6 +45,7 @@ function SocialButton({
   title: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -55,32 +59,33 @@ function SocialButton({
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: spacing.sm,
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    minHeight: 52,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  icon: {
-    width: 20,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    list: {
+      gap: spacing.sm,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      minHeight: 52,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    icon: {
+      width: 20,
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: colors.text,
+    },
+  });

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
+import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/theme';
 
 export type Choice<T extends string> = {
   value: T;
@@ -15,6 +16,7 @@ type ChoiceCardsProps<T extends string> = {
 
 // Pick exactly one option, shown as cards stacked on top of each other.
 export function ChoiceCards<T extends string>({ choices, value, onChange }: ChoiceCardsProps<T>) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.list} accessibilityRole="radiogroup">
       {choices.map((choice) => {
@@ -41,46 +43,47 @@ export function ChoiceCards<T extends string>({ choices, value, onChange }: Choi
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: spacing.sm,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  cardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  dotSelected: {
-    borderColor: colors.primary,
-    borderWidth: 6,
-  },
-  text: {
-    flex: 1,
-    gap: 2,
-  },
-  label: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-  },
-  description: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    list: {
+      gap: spacing.sm,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.lg,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    cardSelected: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
+    dot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 2,
+      borderColor: colors.border,
+    },
+    dotSelected: {
+      borderColor: colors.primary,
+      borderWidth: 6,
+    },
+    text: {
+      flex: 1,
+      gap: 2,
+    },
+    label: {
+      fontSize: fontSize.md,
+      fontWeight: fontWeight.semibold,
+      color: colors.text,
+    },
+    description: {
+      fontSize: fontSize.sm,
+      color: colors.textMuted,
+    },
+  });

@@ -1,7 +1,8 @@
 import type { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from '@/constants/theme';
+import { spacing, type Palette } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/theme';
 
 type ScreenProps = PropsWithChildren<{
   // Center the content vertically (sign-in, sign-up, empty states).
@@ -9,6 +10,7 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 export function Screen({ children, centered = false }: ScreenProps) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -26,23 +28,24 @@ export function Screen({ children, centered = false }: ScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    padding: spacing.xl,
-    gap: spacing.md,
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
-  },
-  centered: {
-    justifyContent: 'center',
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      padding: spacing.xl,
+      gap: spacing.md,
+      width: '100%',
+      maxWidth: 440,
+      alignSelf: 'center',
+    },
+    centered: {
+      justifyContent: 'center',
+    },
+  });

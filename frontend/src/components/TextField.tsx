@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
+import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/lib/theme';
 
 type TextFieldProps = TextInputProps & {
   label?: string;
@@ -8,6 +9,8 @@ type TextFieldProps = TextInputProps & {
 };
 
 export function TextField({ label, error, style, onFocus, onBlur, ...props }: TextFieldProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [focused, setFocused] = useState(false);
 
   return (
@@ -36,33 +39,34 @@ export function TextField({ label, error, style, onFocus, onBlur, ...props }: Te
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: spacing.xs,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.lg,
-    fontSize: fontSize.md,
-    color: colors.text,
-  },
-  inputFocused: {
-    borderColor: colors.primary,
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    fontSize: fontSize.sm,
-    color: colors.danger,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    wrapper: {
+      gap: spacing.xs,
+    },
+    label: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.medium,
+      color: colors.text,
+    },
+    input: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md + 2,
+      paddingHorizontal: spacing.lg,
+      fontSize: fontSize.md,
+      color: colors.text,
+    },
+    inputFocused: {
+      borderColor: colors.primary,
+    },
+    inputError: {
+      borderColor: colors.danger,
+    },
+    error: {
+      fontSize: fontSize.sm,
+      color: colors.danger,
+    },
+  });

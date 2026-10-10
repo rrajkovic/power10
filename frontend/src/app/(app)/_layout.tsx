@@ -1,6 +1,11 @@
 import { router } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useEffect } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { LogWorkoutAccessory, LogWorkoutFloatingButton } from '@/components/LogWorkoutButton';
+
+// The bar above the tab bar only exists on iOS 26 and later.
+const hasBottomAccessory = Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) >= 26;
 
 // The system tab bar: Liquid Glass on iOS 26, Material on Android.
 // Tabs appear in the order of the triggers.
@@ -13,7 +18,22 @@ export default function AppLayout() {
   }, []);
 
   return (
+    <View style={styles.fill}>
+      <Tabs />
+      {hasBottomAccessory ? null : <LogWorkoutFloatingButton />}
+    </View>
+  );
+}
+
+function Tabs() {
+  return (
     <NativeTabs>
+      {hasBottomAccessory ? (
+        <NativeTabs.BottomAccessory>
+          <LogWorkoutAccessory />
+        </NativeTabs.BottomAccessory>
+      ) : null}
+
       <NativeTabs.Trigger name="team">
         <NativeTabs.Trigger.Label>Team</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
@@ -47,3 +67,9 @@ export default function AppLayout() {
     </NativeTabs>
   );
 }
+
+const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});

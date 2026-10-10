@@ -89,6 +89,10 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Athletes log sessions for themselves. **Decided**
 - Coaches can log a session for one athlete, a group of athletes, or the whole team. **Decided**
 - Sessions logged by a coach are verified automatically. **Decided**
+- The logging form asks for: activity, intensity (optional), day (today or earlier, never the future), time, distance (optional; km, m or miles), and notes (optional). Custom activities also need a short description. **Decided**
+- Time can be typed the way people say it or read it off a machine: `45` (minutes), `1h 15m`, `39:40`, `1:05:20`. **Decided**
+- The form previews the credits before saving. The preview is only a convenience: the database calculates the saved number. **Decided**
+- Built so far: logging for yourself. Still to build: photos, coaches logging for other people, editing and deleting a session. **In progress**
 
 ## Roles
 
@@ -193,6 +197,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Admins change the team colors, like other team settings. **Decided**
 - Team colors are used for the blurred background glow, progress bars, highlights and primary buttons. Body text, backgrounds and error messages always use the app's own colors, so any team color stays readable. Text on team-colored buttons is black or white, picked automatically for contrast. **Decided**
 - Without a secondary color, the glow uses two shades of the primary. **Decided**
+- The top bar (profile and team switcher) is frosted and blurred. It fades and slides off the top while you scroll down, and slides back when you stop scrolling, scroll up, or reach the top. The glow stays fixed behind the page, and pull-to-refresh shows its spinner below the bar. **Decided**
 
 ## Social
 
@@ -230,8 +235,11 @@ A member who no longer has a verified email matching the team's domains gets **2
 
 ### Goal cards (Home)
 
-- **Your week:** your credits toward the target, per-type requirements, and "X to go". Coaches (no targets) don't get this card. **Decided**
-- **Team:** "14 / 22 athletes on track this week", for everyone. Coaches and admins can tap it to see who's behind. **Decided**
+- **Your week:** your credits toward the target, per-type requirements, and "X to go". Coaches get the same card without a target: their credits, sessions, minutes and distance. **Decided**
+- Home is meant to motivate: it shows progress, not who's behind. **Decided**
+- **Team this week:** the team's total minutes (big) and hours, the team goal (everyone's target added up) as credits and %, plus sessions, kilometers and minutes per athlete. Athletes only: coaches' sessions don't count. Links to the Team tab. **Decided**
+- Coaches and admins also see "5 / 13 on target · 8 still to go — See who ›" at the bottom of that card. Athletes don't. **Decided**
+- The on-target count ("5 / 13 athletes have hit the weekly target") is on the Team tab for everyone; the list of who's still to go (or missed it, for past weeks) is for coaches and admins only. **Decided**
 
 ## Team tab
 

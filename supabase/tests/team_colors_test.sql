@@ -32,7 +32,7 @@ select public.join_team((select code from athlete_code));
 reset role;
 
 select is(
-  (select accent_primary || '/' || coalesce(accent_secondary, 'none') from public.teams),
+  (select accent_primary || '/' || coalesce(accent_secondary, 'none') from public.teams where id = (select id from team)),
   '#0033A0/none', 'New teams get the default primary color and no secondary'
 );
 
@@ -56,7 +56,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 update public.teams set accent_primary = '#FF0000' where id = (select id from team);
 reset role;
 select is(
-  (select accent_primary from public.teams),
+  (select accent_primary from public.teams where id = (select id from team)),
   '#011F5B', 'Athletes can''t change the team colors'
 );
 

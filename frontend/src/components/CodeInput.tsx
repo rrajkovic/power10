@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TextInput } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
+import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
+import { useThemedStyles } from '@/lib/theme';
 
 const CODE_LENGTH = 6;
 
@@ -25,6 +26,7 @@ export function CodeInput({
   shakeKey = 0,
   disabled = false,
 }: CodeInputProps) {
+  const styles = useThemedStyles(makeStyles);
   // Animated values are created once and kept for the component's lifetime.
   const [shake] = useState(() => new Animated.Value(0));
   const [scales] = useState(() =>
@@ -100,41 +102,42 @@ export function CodeInput({
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  box: {
-    flex: 1,
-    aspectRatio: 0.85,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boxActive: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  boxError: {
-    borderColor: colors.danger,
-  },
-  digit: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-  },
-  // Covers the boxes so a tap anywhere focuses it, but is invisible.
-  hiddenInput: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    opacity: 0,
-    fontSize: fontSize.md,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    box: {
+      flex: 1,
+      aspectRatio: 0.85,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    boxActive: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
+    boxError: {
+      borderColor: colors.danger,
+    },
+    digit: {
+      fontSize: fontSize.xl,
+      fontWeight: fontWeight.bold,
+      color: colors.text,
+    },
+    // Covers the boxes so a tap anywhere focuses it, but is invisible.
+    hiddenInput: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      opacity: 0,
+      fontSize: fontSize.md,
+    },
+  });

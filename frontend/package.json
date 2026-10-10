@@ -5,7 +5,9 @@
   "dependencies": {
     "@expo/ui": "~57.0.21",
     "@supabase/supabase-js": "^2.117.3",
+    "@tanstack/react-query": "^5.104.1",
     "expo": "~57.0.26",
+    "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.20",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
