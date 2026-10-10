@@ -158,13 +158,15 @@ A member who no longer has a verified email matching the team's domains gets **2
 ## Seasons and calendar
 
 - Teams set season dates. **Decided**
+- Every new team starts with a first season (from the day it's created until the same day next year) and a weekly target of **12 credits** (120 minutes at the default 1 credit per 10 minutes), with no max. Admins can change or remove both. **Decided**
 - The calendar holds important tests and races. **Decided**
 - Coaches can schedule workouts on the calendar. **Decided**
 - Athletes can link a logged session to a scheduled workout (optional). **Decided**
 - Admins can override the weekly target and cap for specific weeks (taper, test, race weeks). **Decided**
 - A team can have several seasons, and past seasons keep their history. **Decided**
 - A session's date is decided by the team's time zone, not where the athlete is. **Decided**
-- Weeks run Monday to Sunday by default; the team can change the start day. **Decided**
+- Weeks always run Monday to Sunday (in the team's time zone). There is no setting to change the start day. **Decided**
+- Two-week periods are counted from the Monday of the season's first week (weeks 1–2, 3–4, …). **Decided**
 - The team's time zone is detected when the team is created and can be changed in settings. **Decided**
 
 ## Photos and verification
@@ -206,6 +208,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Home, top to bottom: account (left) and team switcher (right); goal cards (**Your week**, **Team**, swipeable); leaderboard; a "Log a session" bar above the tab bar. **Decided**
 - **Feed**: every session on the team, with comments and reactions, filterable to **Everyone** (default), **My workouts** (your history), one person, or a chosen list of people. **Decided**
 - No search for now. **Decided**
+- **Log a workout** lives in the iOS 26 tab bar's bottom accessory (Liquid Glass, visible on every tab, like Apple Music's mini player). Tapping it slides up a native sheet with the logging form; try a zoom/morph transition from the bar, fall back to the standard sheet. Android and older iPhones get a floating "＋ Log a workout" button instead. To be built together with logging. **Decided**
 
 ### Leaderboard
 
@@ -214,10 +217,33 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Anyone past the end of the bar gets a full bar with a » marker; the number shows their real total. **Decided**
 - Going over the max is a gentle caution, not praise: that bar (and the » marker) is muted orange. Teams without a max have no caution state; going past target + 50% just shows the » marker in the team color. **Decided**
 - The max is the most people *should* do, not a limit: sessions above it still count. **Decided**
-- For minutes, distance and sessions (no targets), bars are relative to the leader. **Decided**
-- Bars past the target use the team color; bars short of it are grey. People short of the target show "X to go". **Decided**
-- Two dropdowns: period (the team's period or season) and metric (credits, minutes, distance, sessions). The target and cap lines only show for credits. **Decided**
+- For minutes and distance (no targets), bars are relative to the leader. **Decided**
+- Bars past the target use the team color; bars short of it are grey. **Decided**
+- Period: choose **Week, Month or Season** (plus **2 weeks** for teams using that period), and step to earlier ones with ‹ › (the current one by default, never the future). **Decided**
+- Metric: **Credits, Minutes or Distance** (no session count). The target and max lines only show for credits. **Decided**
 - Home shows the top 10 plus your own row (highlighted, pinned if you're outside the top 10), with "See all" for the full list. **Decided**
+
+### Who sees what
+
+- Everyone sees everyone's numbers, bars and rank, and their **own** "X to go". **Decided**
+- Only coaches and admins see who else is behind: "X to go" on other people, the grey "behind" look, the orange over-max warning, and AI verification flags. Athletes see a plain scoreboard. **Decided**
+
+### Goal cards (Home)
+
+- **Your week:** your credits toward the target, per-type requirements, and "X to go". Coaches (no targets) don't get this card. **Decided**
+- **Team:** "14 / 22 athletes on track this week", for everyone. Coaches and admins can tap it to see who's behind. **Decided**
+
+## Team tab
+
+First version, top to bottom:
+
+- **Missed target** (coaches and admins only): how many athletes missed the target in a given week and who they are, sorted by how far short (no sessions at the bottom), using that week's own target (taper weeks included). ‹ › to look at any week. For the current week it shows who is still behind, with a **Nudge** button (push notification). Coaches don't count. **Decided**
+- **Needs review** (coaches and admins only): sessions the AI flagged, approve or reject in one tap. **Decided**
+- **Coming up:** the next test or race with a countdown, and today's scheduled workout with who has done it. **Decided**
+- **Target hit rate:** % of athletes on target, week by week across the season. **Decided**
+- **Streaks:** weeks in a row on target, per athlete. **Decided**
+- **Members and invites:** the roster and invite codes; managing them is for admins. **Decided**
+- Later: athlete drill-down, load warnings (sudden volume jumps), team challenges, erg test board, a season view of missed weeks per athlete. **Note**
 
 ## Open questions
 

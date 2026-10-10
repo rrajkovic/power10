@@ -88,7 +88,6 @@ Which notification types (comments, reactions, …) a user has turned off.
 |---|---|
 | name, logo | |
 | time_zone | Detected at creation, editable; decides each session's date |
-| week_start_day | Monday by default |
 | target_period | `week` (default), `two_weeks` or `month` |
 | require_email_domain | On/off |
 | allowed_domains | List, e.g. `upenn.edu`; subdomains are allowed automatically |
@@ -277,6 +276,29 @@ The AI's work queue and log. Works the same whether OCR or an API reads the phot
 | emoji | Any emoji; one person can add several different ones, not the same one twice |
 
 ---
+
+## Calculated on demand (database functions)
+
+Nothing below is stored; it's computed from `sessions` when asked. Weeks run
+Monday–Sunday in the team's time zone, rejected sessions never count, and
+targets apply to athletes only.
+
+| Function | Returns | Who |
+|---|---|---|
+| `team_period(team, kind, day)` | Start and end of the week / 2 weeks / month / season containing `day`, and its target and max (only when `kind` is the team's target period) | Members |
+| `leaderboard(team, kind, day)` | Everyone's credits, minutes, distance and session count in that period. Athletes always; coaches only if they logged | Members |
+| `my_type_progress(team, day)` | Your credits per activity type that has a requirement or cap | Members |
+| `target_summary(team, day)` | Athletes on target vs. total ("14 / 22") | Members |
+| `missed_target(team, day)` | Who missed the target, how far short, missing types, sorted furthest behind first | Coaches and admins |
+| `target_hit_rate(team)` | On target vs. total, per target period this season | Members |
+| `streaks(team)` | Target periods in a row on target, per athlete | Members |
+
+"On target" = total credits at least the target **and** every per-type
+minimum reached. A week's target is its override (taper/test weeks) if there
+is one, otherwise the season's target.
+
+New teams get a first season (today → same day next year) with a 12-credit
+weekly target and no max.
 
 ## Design choices
 
