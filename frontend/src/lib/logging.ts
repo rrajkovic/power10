@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Database } from './database.types';
+import { requestVerification, uploadSessionPhotos, type WorkoutPhoto } from './photos';
 import { progressKey } from './progress';
 import { supabase } from './supabase';
 
@@ -50,10 +51,11 @@ export type NewSession = {
   durationSeconds: number;
   distanceMeters: number | null;
   notes: string | null;
+  photos: WorkoutPhoto[];
 };
 
-// Saves a session. The database works out the credits; afterwards every goal
-// card and leaderboard reloads.
+// Saves a session and its photos. The database works out the credits;
+// afterwards every goal card and leaderboard reloads.
 export function useLogSession() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -74,6 +76,18 @@ export function useLogSession() {
         .select('id, credits')
         .single();
       if (error) throw error;
+
+      if (session.photos.length) {
+        try {
+          await uploadSessionPhotos(session.teamId, data.id, session.photos);
+        } catch (uploadError) {
+          // Don't leave a session behind without its photos: remove it so
+          // saving again doesn't log the workout twice.
+          await supabase.from('sessions').delete().eq('id', data.id);
+          throw uploadError;
+        }
+        requestVerification(data.id);
+      }
       return data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: progressKey }),
@@ -196,6 +210,15 @@ export function formatDuration(seconds: number): string {
   return [h ? `${h} h` : '', m ? `${m} min` : '', s ? `${s} s` : ''].filter(Boolean).join(' ');
 }
 
+// The other direction, for filling the box from a photo: 2380 → "39:40",
+// 3920 → "1:05:20".
+export function durationInput(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h ? `${h}:${pad(m)}:${pad(seconds % 60)}` : `${m}:${pad(seconds % 60)}`;
+}
+
 export type DistanceUnit = 'km' | 'm' | 'mi';
 
 // "10" km → 10000. Returns null for an empty box and NaN for something that
@@ -225,12 +248,18 @@ const weekdayMonthDay = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 });
 
-// "Today", "Yesterday", or "Mon, Oct 5".
-export function dayLabel(iso: string, today: string): string {
+// How many days `iso` is before `today` (negative if it's in the future).
+export function daysBefore(iso: string, today: string): number {
   const [y, m, d] = iso.split('-').map(Number);
   const [ty, tm, td] = today.split('-').map(Number);
-  const daysAgo = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000);
+}
+
+// "Today", "Yesterday", or "Mon, Oct 5".
+export function dayLabel(iso: string, today: string): string {
+  const daysAgo = daysBefore(iso, today);
   if (daysAgo === 0) return 'Today';
   if (daysAgo === 1) return 'Yesterday';
+  const [y, m, d] = iso.split('-').map(Number);
   return weekdayMonthDay.format(new Date(y, m - 1, d));
 }

@@ -92,7 +92,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - The logging form asks for: activity, intensity (optional), day (today or earlier, never the future), time, distance (optional; km, m or miles), and notes (optional). Custom activities also need a short description. **Decided**
 - Time can be typed the way people say it or read it off a machine: `45` (minutes), `1h 15m`, `39:40`, `1:05:20`. **Decided**
 - The form previews the credits before saving. The preview is only a convenience: the database calculates the saved number. **Decided**
-- Built so far: logging for yourself. Still to build: photos, coaches logging for other people, editing and deleting a session. **In progress**
+- Built so far: logging for yourself, with photos. Still to build: coaches logging for other people, editing and deleting a session. **In progress**
 
 ## Roles
 
@@ -178,7 +178,12 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Photos can come from the in-app camera or the gallery. **Decided**
 - Sessions count as soon as they're logged. Sessions the AI fails or finds suspicious are flagged for admins and keep counting until an admin rejects them. **Decided**
 - Gallery photos (not taken live in the app) are marked for admins. **Decided**
-- Which AI reads the photos (on-device OCR, an API, or both) is still undecided. The database stays the same either way. **Open**
+- Photos are read by Google's Gemini (a model that understands images), called from Supabase Edge Functions so the API key never reaches the app. Which models to try, and in what order, is a setting (`GEMINI_MODELS`). On-device reading is not planned for now. **Decided**
+- **Auto-fill:** adding a photo to the logging form has the AI read the time, distance, date, activity and intensity off the screen and fill in the form. The athlete checks it and can change anything before saving. Up to 4 photos per session; several photos are pieces of the same session and are added together. Only work time counts, never rest. **Decided**
+- **Check after saving:** the AI compares the saved session with its photos (time and distance within about 10%) and marks it passed or flagged, with a one-sentence reason for the coach. A screen dated before the session is fine (logged late); one dated after is flagged. **Decided**
+- If the AI can't be reached, the check is retried up to 3 times; after that the session stays "pending" for an admin to look at. **Decided**
+- Photos are shrunk on the phone (longest side 1600 px) before upload. **Decided**
+- Not built yet: catching a reused photo (the database supports it, the app doesn't send a fingerprint yet), a limit on how many photo reads one person can trigger, and a background job that retries waiting checks. **Open**
 
 ## Joining a team
 

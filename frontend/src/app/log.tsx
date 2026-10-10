@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, TextButton } from '@/components/Button';
 import { Chips } from '@/components/Chips';
 import { Screen } from '@/components/Screen';
@@ -10,7 +10,9 @@ import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants
 import { visibleAccent } from '@/lib/color';
 import {
   dayLabel,
+  daysBefore,
   describeRule,
+  durationInput,
   estimateCredits,
   findCreditRule,
   formatDuration,
@@ -21,6 +23,7 @@ import {
   useLogSession,
   type DistanceUnit,
 } from '@/lib/logging';
+import { MAX_PHOTOS, pickPhotos, readWorkoutPhotos, type WorkoutPhoto } from '@/lib/photos';
 import { addDays } from '@/lib/progress';
 import { useSession } from '@/lib/session';
 import { useTeams } from '@/lib/teams';
@@ -50,6 +53,12 @@ export default function LogWorkout() {
   const [distance, setDistance] = useState('');
   const [unit, setUnit] = useState<DistanceUnit>('km');
   const [notes, setNotes] = useState('');
+  const [photos, setPhotos] = useState<WorkoutPhoto[]>([]);
+  // What the AI is doing with the photos, and what it said.
+  const [reading, setReading] = useState(false);
+  const [photoNote, setPhotoNote] = useState<{ text: string; isError: boolean } | null>(null);
+  // Counts photo reads, so a slow old answer can't overwrite a newer one.
+  const latestRead = useRef(0);
   // Only show "this is required" messages after the first try at saving.
   const [triedToSave, setTriedToSave] = useState(false);
 
@@ -77,7 +86,65 @@ export default function LogWorkout() {
       ? 'Try something like 45, 1h 15m or 39:40'
       : null;
   const labelError = type?.is_custom && !customLabel.trim() ? 'What did you do?' : null;
-  const canSave = !!type && !durationError && !labelError && !distanceInvalid;
+  const photoError =
+    type?.requires_photo && photos.length === 0 ? `${type.name} needs a photo of your screen.` : null;
+  const canSave = !!type && !durationError && !labelError && !photoError && !distanceInvalid;
+
+  // Has the AI read the photos and fills in whatever it could. The athlete
+  // can still change anything before saving.
+  async function readPhotos(current: WorkoutPhoto[]) {
+    const thisRead = ++latestRead.current;
+    setPhotoNote(null);
+    if (current.length === 0) {
+      setReading(false);
+      return;
+    }
+    setReading(true);
+    try {
+      const read = await readWorkoutPhotos(currentTeam!.id, current);
+      if (thisRead !== latestRead.current) return;
+      if (read.seconds !== null) setDuration(durationInput(read.seconds));
+      if (read.distance_meters !== null) {
+        const km = read.distance_meters >= 1000;
+        setUnit(km ? 'km' : 'm');
+        setDistance(String(km ? read.distance_meters / 1000 : read.distance_meters));
+      }
+      if (read.activity_type_id) setTypeId(read.activity_type_id);
+      if (read.intensity_id) setIntensityId(read.intensity_id);
+      if (read.date) {
+        const before = daysBefore(read.date, today);
+        // Ignore dates in the future or absurdly old (a monitor with a wrong clock).
+        if (before >= 0 && before <= 60) setDaysAgo(before);
+      }
+      setPhotoNote({
+        text: read.note || (read.readable ? 'Filled in from your photo.' : 'Couldn’t read that photo.'),
+        isError: !read.readable,
+      });
+    } catch (error) {
+      if (thisRead !== latestRead.current) return;
+      setPhotoNote({ text: (error as Error).message, isError: true });
+    } finally {
+      if (thisRead === latestRead.current) setReading(false);
+    }
+  }
+
+  async function addPhotos(from: WorkoutPhoto['source']) {
+    try {
+      const added = await pickPhotos(from, MAX_PHOTOS - photos.length);
+      if (added.length === 0) return;
+      const next = [...photos, ...added].slice(0, MAX_PHOTOS);
+      setPhotos(next);
+      readPhotos(next);
+    } catch (error) {
+      setPhotoNote({ text: (error as Error).message, isError: true });
+    }
+  }
+
+  function removePhoto(index: number) {
+    const next = photos.filter((_, i) => i !== index);
+    setPhotos(next);
+    readPhotos(next);
+  }
 
   function save() {
     setTriedToSave(true);
@@ -93,6 +160,7 @@ export default function LogWorkout() {
         durationSeconds,
         distanceMeters: distanceMeters,
         notes: notes.trim() || null,
+        photos,
       },
       { onSuccess: () => router.back() },
     );
@@ -111,6 +179,57 @@ export default function LogWorkout() {
         <ErrorText>Couldn’t load your team’s activities. Check your connection and try again.</ErrorText>
       ) : (
         <View style={styles.form}>
+          <View style={styles.field}>
+            <Label>Photo{type?.requires_photo ? '' : ' (optional)'}</Label>
+            <Muted style={styles.hint}>
+              Add a photo of your erg, watch or app screen and we’ll fill in the rest.
+            </Muted>
+            {photos.length ? (
+              <View style={styles.photoRow}>
+                {photos.map((photo, index) => (
+                  <View key={photo.uri}>
+                    <Image source={{ uri: photo.uri }} style={styles.photo} />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove photo ${index + 1}`}
+                      onPress={() => removePhoto(index)}
+                      hitSlop={8}
+                      style={styles.removePhoto}
+                    >
+                      <Text style={styles.removePhotoText}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {photos.length < MAX_PHOTOS ? (
+              <View style={styles.photoButtons}>
+                {/* Browsers can't open the camera this way; phones can. */}
+                {Platform.OS !== 'web' ? (
+                  <View style={styles.photoButton}>
+                    <Button title="Take photo" variant="secondary" onPress={() => addPhotos('camera')} />
+                  </View>
+                ) : null}
+                <View style={styles.photoButton}>
+                  <Button title="Choose photo" variant="secondary" onPress={() => addPhotos('gallery')} />
+                </View>
+              </View>
+            ) : null}
+            {reading ? (
+              <View style={styles.readingRow}>
+                <ActivityIndicator color={colors.textMuted} />
+                <Muted style={styles.hint}>Reading your photo…</Muted>
+              </View>
+            ) : photoNote ? (
+              photoNote.isError ? (
+                <ErrorText>{photoNote.text}</ErrorText>
+              ) : (
+                <Muted style={styles.hint}>{photoNote.text} Check it before saving.</Muted>
+              )
+            ) : null}
+            {triedToSave && photoError ? <ErrorText>{photoError}</ErrorText> : null}
+          </View>
+
           <View style={styles.field}>
             <Label>Activity</Label>
             <Chips
@@ -273,6 +392,48 @@ const makeStyles = (colors: Palette) =>
     },
     hint: {
       fontSize: fontSize.sm,
+    },
+    photoRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.md,
+      paddingTop: spacing.sm,
+    },
+    photo: {
+      width: 72,
+      height: 72,
+      borderRadius: radius.md,
+      backgroundColor: colors.track,
+    },
+    removePhoto: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceRaised,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    removePhotoText: {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.bold,
+      color: colors.text,
+    },
+    photoButtons: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    photoButton: {
+      flex: 1,
+    },
+    readingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
     dateRow: {
       flexDirection: 'row',

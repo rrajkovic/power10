@@ -33,7 +33,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Take a photo of your workout screen to log it.",
+          "photosPermission": "Choose a photo of your workout screen to log it."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
