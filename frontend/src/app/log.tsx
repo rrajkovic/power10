@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { ErrorText, Label, Muted, Title } from '@/components/Typography';
 import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
-import { visibleAccent } from '@/lib/color';
+import { readableOn, visibleAccent } from '@/lib/color';
 import {
   dayLabel,
   daysBefore,
@@ -21,6 +21,7 @@ import {
   todayInTimeZone,
   useLoggingOptions,
   useLogSession,
+  useTeamAthletes,
   type DistanceUnit,
 } from '@/lib/logging';
 import { MAX_PHOTOS, pickPhotos, readWorkoutPhotos, type WorkoutPhoto } from '@/lib/photos';
@@ -43,6 +44,11 @@ export default function LogWorkout() {
   const { currentTeam } = useTeams();
   const options = useLoggingOptions(currentTeam?.id);
   const logSession = useLogSession();
+  // Coaches and admins can log for athletes instead of themselves.
+  const canLogForOthers = !!currentTeam?.isAdmin;
+  const athletes = useTeamAthletes(currentTeam?.id, canLogForOthers);
+  const [forOthers, setForOthers] = useState(false);
+  const [athleteIds, setAthleteIds] = useState<string[]>([]);
 
   const [typeId, setTypeId] = useState<string | null>(null);
   const [intensityId, setIntensityId] = useState<string | null>(null);
@@ -86,9 +92,21 @@ export default function LogWorkout() {
       ? 'Try something like 45, 1h 15m or 39:40'
       : null;
   const labelError = type?.is_custom && !customLabel.trim() ? 'What did you do?' : null;
+  // Sessions a coach logs for athletes are verified already, so no photo.
   const photoError =
-    type?.requires_photo && photos.length === 0 ? `${type.name} needs a photo of your screen.` : null;
-  const canSave = !!type && !durationError && !labelError && !photoError && !distanceInvalid;
+    !forOthers && type?.requires_photo && photos.length === 0
+      ? `${type.name} needs a photo of your screen.`
+      : null;
+  const athletesError = forOthers && athleteIds.length === 0 ? 'Pick at least one athlete.' : null;
+  const canSave =
+    !!type && !durationError && !labelError && !photoError && !athletesError && !distanceInvalid;
+
+  const allAthletes = athletes.data ?? [];
+  const everyoneSelected = allAthletes.length > 0 && athleteIds.length === allAthletes.length;
+
+  function toggleAthlete(id: string) {
+    setAthleteIds(athleteIds.includes(id) ? athleteIds.filter((a) => a !== id) : [...athleteIds, id]);
+  }
 
   // Has the AI read the photos and fills in whatever it could. The athlete
   // can still change anything before saving.
@@ -152,7 +170,7 @@ export default function LogWorkout() {
     logSession.mutate(
       {
         teamId: currentTeam!.id,
-        athleteId: session!.user.id,
+        athleteIds: forOthers ? athleteIds : [session!.user.id],
         activityTypeId: type.id,
         intensityId,
         customLabel: type.is_custom ? customLabel.trim() : null,
@@ -160,7 +178,7 @@ export default function LogWorkout() {
         durationSeconds,
         distanceMeters: distanceMeters,
         notes: notes.trim() || null,
-        photos,
+        photos: forOthers ? [] : photos,
       },
       { onSuccess: () => router.back() },
     );
@@ -179,56 +197,103 @@ export default function LogWorkout() {
         <ErrorText>Couldn’t load your team’s activities. Check your connection and try again.</ErrorText>
       ) : (
         <View style={styles.form}>
-          <View style={styles.field}>
-            <Label>Photo{type?.requires_photo ? '' : ' (optional)'}</Label>
-            <Muted style={styles.hint}>
-              Add a photo of your erg, watch or app screen and we’ll fill in the rest.
-            </Muted>
-            {photos.length ? (
-              <View style={styles.photoRow}>
-                {photos.map((photo, index) => (
-                  <View key={photo.uri}>
-                    <Image source={{ uri: photo.uri }} style={styles.photo} />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove photo ${index + 1}`}
-                      onPress={() => removePhoto(index)}
-                      hitSlop={8}
-                      style={styles.removePhoto}
-                    >
-                      <Text style={styles.removePhotoText}>✕</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            {photos.length < MAX_PHOTOS ? (
-              <View style={styles.photoButtons}>
-                {/* Browsers can't open the camera this way; phones can. */}
-                {Platform.OS !== 'web' ? (
-                  <View style={styles.photoButton}>
-                    <Button title="Take photo" variant="secondary" onPress={() => addPhotos('camera')} />
-                  </View>
-                ) : null}
-                <View style={styles.photoButton}>
-                  <Button title="Choose photo" variant="secondary" onPress={() => addPhotos('gallery')} />
-                </View>
-              </View>
-            ) : null}
-            {reading ? (
-              <View style={styles.readingRow}>
-                <ActivityIndicator color={colors.textMuted} />
-                <Muted style={styles.hint}>Reading your photo…</Muted>
-              </View>
-            ) : photoNote ? (
-              photoNote.isError ? (
-                <ErrorText>{photoNote.text}</ErrorText>
+          {canLogForOthers ? (
+            <View style={styles.field}>
+              <Label>Who</Label>
+              <Chips
+                options={[
+                  { value: 'me', label: 'Me' },
+                  { value: 'athletes', label: 'Athletes' },
+                ]}
+                value={forOthers ? 'athletes' : 'me'}
+                onChange={(value) => setForOthers(value === 'athletes')}
+                accent={accent}
+              />
+              {!forOthers ? null : athletes.isLoading ? (
+                <Muted style={styles.hint}>Loading athletes…</Muted>
+              ) : allAthletes.length === 0 ? (
+                <Muted style={styles.hint}>No athletes on this team yet.</Muted>
               ) : (
-                <Muted style={styles.hint}>{photoNote.text} Check it before saving.</Muted>
-              )
-            ) : null}
-            {triedToSave && photoError ? <ErrorText>{photoError}</ErrorText> : null}
-          </View>
+                <View style={styles.athleteList}>
+                  <AthleteRow
+                    name={`Everyone (${allAthletes.length})`}
+                    selected={everyoneSelected}
+                    accent={accent}
+                    bold
+                    onPress={() => setAthleteIds(everyoneSelected ? [] : allAthletes.map((a) => a.id))}
+                  />
+                  {allAthletes.map((athlete) => (
+                    <AthleteRow
+                      key={athlete.id}
+                      name={athlete.name}
+                      selected={athleteIds.includes(athlete.id)}
+                      accent={accent}
+                      onPress={() => toggleAthlete(athlete.id)}
+                    />
+                  ))}
+                </View>
+              )}
+              {forOthers ? (
+                <Muted style={styles.hint}>
+                  Each athlete gets this workout. Workouts you log for athletes count as verified.
+                </Muted>
+              ) : null}
+              {triedToSave && athletesError ? <ErrorText>{athletesError}</ErrorText> : null}
+            </View>
+          ) : null}
+
+          {forOthers ? null : (
+            <View style={styles.field}>
+              <Label>Photo{type?.requires_photo ? '' : ' (optional)'}</Label>
+              <Muted style={styles.hint}>
+                Add a photo of your erg, watch or app screen and we’ll fill in the rest.
+              </Muted>
+              {photos.length ? (
+                <View style={styles.photoRow}>
+                  {photos.map((photo, index) => (
+                    <View key={photo.uri}>
+                      <Image source={{ uri: photo.uri }} style={styles.photo} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove photo ${index + 1}`}
+                        onPress={() => removePhoto(index)}
+                        hitSlop={8}
+                        style={styles.removePhoto}
+                      >
+                        <Text style={styles.removePhotoText}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {photos.length < MAX_PHOTOS ? (
+                <View style={styles.photoButtons}>
+                  {/* Browsers can't open the camera this way; phones can. */}
+                  {Platform.OS !== 'web' ? (
+                    <View style={styles.photoButton}>
+                      <Button title="Take photo" variant="secondary" onPress={() => addPhotos('camera')} />
+                    </View>
+                  ) : null}
+                  <View style={styles.photoButton}>
+                    <Button title="Choose photo" variant="secondary" onPress={() => addPhotos('gallery')} />
+                  </View>
+                </View>
+              ) : null}
+              {reading ? (
+                <View style={styles.readingRow}>
+                  <ActivityIndicator color={colors.textMuted} />
+                  <Muted style={styles.hint}>Reading your photo…</Muted>
+                </View>
+              ) : photoNote ? (
+                photoNote.isError ? (
+                  <ErrorText>{photoNote.text}</ErrorText>
+                ) : (
+                  <Muted style={styles.hint}>{photoNote.text} Check it before saving.</Muted>
+                )
+              ) : null}
+              {triedToSave && photoError ? <ErrorText>{photoError}</ErrorText> : null}
+            </View>
+          )}
 
           <View style={styles.field}>
             <Label>Activity</Label>
@@ -327,7 +392,7 @@ export default function LogWorkout() {
 
           <View style={styles.credits}>
             <View>
-              <Label>Credits</Label>
+              <Label>{forOthers && athleteIds.length > 1 ? 'Credits each' : 'Credits'}</Label>
               <Muted style={styles.hint}>{describeRule(rule)}</Muted>
             </View>
             <Text style={[styles.creditsValue, { color: accent }]}>
@@ -340,10 +405,51 @@ export default function LogWorkout() {
               Couldn’t save: {logSession.error.message || 'check your connection and try again'}.
             </ErrorText>
           ) : null}
-          <Button title="Save workout" onPress={save} loading={logSession.isPending} />
+          <Button
+            title={
+              forOthers && athleteIds.length > 0
+                ? `Save for ${athleteIds.length} ${athleteIds.length === 1 ? 'athlete' : 'athletes'}`
+                : 'Save workout'
+            }
+            onPress={save}
+            loading={logSession.isPending}
+          />
         </View>
       )}
     </Screen>
+  );
+}
+
+// One line in the "who is this for" list, with a checkbox.
+function AthleteRow({
+  name,
+  selected,
+  accent,
+  onPress,
+  bold = false,
+}: {
+  name: string;
+  selected: boolean;
+  accent: string;
+  onPress: () => void;
+  bold?: boolean;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={name}
+      onPress={onPress}
+      style={({ pressed }) => [styles.athleteRow, pressed && styles.faded]}
+    >
+      <View style={[styles.checkbox, selected && { backgroundColor: accent, borderColor: accent }]}>
+        {selected ? <Text style={[styles.check, { color: readableOn(accent) }]}>✓</Text> : null}
+      </View>
+      <Text style={[styles.athleteName, bold && styles.athleteNameBold]} numberOfLines={1}>
+        {name}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -392,6 +498,41 @@ const makeStyles = (colors: Palette) =>
     },
     hint: {
       fontSize: fontSize.sm,
+    },
+    athleteList: {
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingVertical: spacing.xs,
+    },
+    athleteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      paddingHorizontal: spacing.lg,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    check: {
+      fontSize: fontSize.sm,
+      fontWeight: fontWeight.bold,
+    },
+    athleteName: {
+      flex: 1,
+      fontSize: fontSize.md,
+      color: colors.text,
+    },
+    athleteNameBold: {
+      fontWeight: fontWeight.semibold,
     },
     photoRow: {
       flexDirection: 'row',

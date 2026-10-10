@@ -92,7 +92,11 @@ A member who no longer has a verified email matching the team's domains gets **2
 - The logging form asks for: activity, intensity (optional), day (today or earlier, never the future), time, distance (optional; km, m or miles), and notes (optional). Custom activities also need a short description. **Decided**
 - Time can be typed the way people say it or read it off a machine: `45` (minutes), `1h 15m`, `39:40`, `1:05:20`. **Decided**
 - The form previews the credits before saving. The preview is only a convenience: the database calculates the saved number. **Decided**
-- Built so far: logging for yourself, with photos. Still to build: coaches logging for other people, editing and deleting a session. **In progress**
+- Coaches and admins get a **Who** choice at the top of the form: **Me** or **Athletes**. Athletes shows a checklist of the team's athletes with an **Everyone** row; each ticked athlete gets the same workout. **Decided**
+- A workout logged for athletes has no photo step, even for activities that normally need one, because it's already verified. **Decided**
+- A group log is saved all at once: either every athlete's session is saved or none is. The sessions share a group id so they can later be shown or undone together. **Decided**
+- Only athletes appear in the list (not other coaches), and not members who are locked out of the team. **Decided**
+- Built so far: logging for yourself with photos, and coaches logging for athletes. Still to build: editing and deleting a session. **In progress**
 
 ## Roles
 

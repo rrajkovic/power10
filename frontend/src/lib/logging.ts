@@ -40,9 +40,43 @@ export function useLoggingOptions(teamId: string | undefined) {
   });
 }
 
+// The athletes a coach or admin can log for: active members with the athlete
+// role, by name. Pass enabled = false for everyone else.
+export function useTeamAthletes(teamId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['team_athletes', teamId],
+    enabled: !!teamId && enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('memberships')
+        .select('user_id, grace_until, profiles(name)')
+        .eq('team_id', teamId!)
+        .eq('role', 'athlete');
+      if (error) throw error;
+      const now = Date.now();
+      return data
+        // Members locked out of the team (email grace period over) can't be logged for.
+        .filter((member) => !member.grace_until || new Date(member.grace_until).getTime() > now)
+        .map((member) => ({ id: member.user_id, name: member.profiles?.name || 'Unnamed' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+}
+
+// A random id shared by the sessions of one group log. It only groups rows,
+// so it doesn't need to be unguessable.
+function randomUuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export type NewSession = {
   teamId: string;
-  athleteId: string;
+  // One id to log for yourself or one athlete; several for a group log
+  // (coaches and admins only). Everyone gets the same workout.
+  athleteIds: string[];
   activityTypeId: string;
   intensityId: string | null;
   customLabel: string | null;
@@ -54,30 +88,38 @@ export type NewSession = {
   photos: WorkoutPhoto[];
 };
 
-// Saves a session and its photos. The database works out the credits;
+// Saves a session (one per athlete) and its photos. The database works out
+// the credits, and marks sessions logged for someone else as verified;
 // afterwards every goal card and leaderboard reloads.
 export function useLogSession() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (session: NewSession) => {
-      const { data, error } = await supabase
+      const groupLogId = session.athleteIds.length > 1 ? randomUuid() : null;
+      // One insert for all rows: either everyone's session is saved or nobody's.
+      const { data: saved, error } = await supabase
         .from('sessions')
-        .insert({
-          team_id: session.teamId,
-          athlete_id: session.athleteId,
-          activity_type_id: session.activityTypeId,
-          intensity_id: session.intensityId,
-          custom_label: session.customLabel,
-          session_date: session.date,
-          duration_seconds: session.durationSeconds,
-          distance_meters: session.distanceMeters,
-          notes: session.notes,
-        })
-        .select('id, credits')
-        .single();
-      if (error) throw error;
+        .insert(
+          session.athleteIds.map((athleteId) => ({
+            team_id: session.teamId,
+            athlete_id: athleteId,
+            activity_type_id: session.activityTypeId,
+            intensity_id: session.intensityId,
+            custom_label: session.customLabel,
+            session_date: session.date,
+            duration_seconds: session.durationSeconds,
+            distance_meters: session.distanceMeters,
+            notes: session.notes,
+            group_log_id: groupLogId,
+          })),
+        )
+        .select('id, credits');
+      const data = saved?.[0];
+      if (!error && !data) throw new Error('Nothing was saved');
+      if (error || !data) throw error;
 
-      if (session.photos.length) {
+      // Photos belong to a single session (your own).
+      if (session.photos.length && session.athleteIds.length === 1) {
         try {
           await uploadSessionPhotos(session.teamId, data.id, session.photos);
         } catch (uploadError) {
