@@ -1,15 +1,25 @@
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/Button';
+import { Button, TextButton } from '@/components/Button';
 import { ErrorText, Label, Muted } from '@/components/Typography';
 import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
+import { visibleAccent } from '@/lib/color';
 import { todayInTimeZone } from '@/lib/logging';
-import { responseLabel, useFlaggedSessions, useReviewSession, type FlaggedSession } from '@/lib/review';
+import {
+  responseLabel,
+  useCorrectAndApprove,
+  useFlaggedSessions,
+  useReviewSession,
+  type FlaggedSession,
+} from '@/lib/review';
 import type { MyTeam } from '@/lib/teams';
-import { useThemedStyles } from '@/lib/theme';
+import { useTheme, useThemedStyles } from '@/lib/theme';
+import { FixFields, fixFrom, readFix } from './FixFields';
 import { SessionSummary } from './SessionSummary';
 
 // Team tab, coaches and admins only: workouts the photo check flagged, with
-// the athlete's answer, to approve or reject.
+// the athlete's answer. A coach can approve, reject or fix the numbers at any
+// point, without waiting for the athlete.
 export function NeedsReview({ team }: { team: MyTeam }) {
   const styles = useThemedStyles(makeStyles);
   const flagged = useFlaggedSessions(team.id, team.isAdmin);
@@ -23,16 +33,28 @@ export function NeedsReview({ team }: { team: MyTeam }) {
       {flagged.data.length === 0 ? (
         <Muted style={styles.small}>Nothing to review. 🎉</Muted>
       ) : (
-        flagged.data.map((session) => <Row key={session.id} session={session} today={today} />)
+        flagged.data.map((session) => (
+          <Row key={session.id} session={session} team={team} today={today} />
+        ))
       )}
     </View>
   );
 }
 
-function Row({ session, today }: { session: FlaggedSession; today: string }) {
+function Row({ session, team, today }: { session: FlaggedSession; team: MyTeam; today: string }) {
   const styles = useThemedStyles(makeStyles);
+  const { scheme } = useTheme();
+  const accent = visibleAccent(team.accentPrimary, scheme);
   const review = useReviewSession();
+  const correct = useCorrectAndApprove();
   const answered = session.athlete_response !== null;
+
+  // A coach can also put the right numbers in themselves.
+  const [fixing, setFixing] = useState(false);
+  const [fix, setFix] = useState(() => fixFrom(session));
+  const { durationSeconds, distanceMeters, valid } = readFix(fix);
+  const busy = review.isPending || correct.isPending;
+  const error = review.error ?? correct.error;
 
   return (
     <View style={styles.row}>
@@ -50,24 +72,58 @@ function Row({ session, today }: { session: FlaggedSession; today: string }) {
           {session.athlete_name?.split(' ')[0] || 'Athlete'}: “{session.athlete_response_note}”
         </Muted>
       ) : null}
-      {review.isError ? <ErrorText>Couldn’t save: {review.error.message}.</ErrorText> : null}
-      <View style={styles.buttons}>
-        <View style={styles.button}>
-          <Button
-            title="Reject"
-            variant="secondary"
-            disabled={review.isPending}
-            onPress={() => review.mutate({ sessionId: session.id, approve: false })}
-          />
+
+      {fixing ? <FixFields teamId={team.id} accent={accent} fix={fix} onChange={setFix} /> : null}
+      {error ? <ErrorText>Couldn’t save: {error.message}.</ErrorText> : null}
+
+      {fixing ? (
+        <View style={styles.buttons}>
+          <View style={styles.button}>
+            <Button title="Back" variant="secondary" disabled={busy} onPress={() => setFixing(false)} />
+          </View>
+          <View style={styles.button}>
+            <Button
+              title="Save and approve"
+              loading={correct.isPending}
+              disabled={!valid}
+              onPress={() =>
+                durationSeconds !== null &&
+                correct.mutate({
+                  sessionId: session.id,
+                  activityTypeId: fix.typeId,
+                  intensityId: fix.intensityId,
+                  durationSeconds,
+                  distanceMeters,
+                  note: '',
+                })
+              }
+            />
+          </View>
         </View>
-        <View style={styles.button}>
-          <Button
-            title="Approve"
-            loading={review.isPending}
-            onPress={() => review.mutate({ sessionId: session.id, approve: true })}
-          />
-        </View>
-      </View>
+      ) : (
+        <>
+          <View style={styles.buttons}>
+            <View style={styles.button}>
+              <Button
+                title="Reject"
+                variant="secondary"
+                disabled={busy}
+                onPress={() => review.mutate({ sessionId: session.id, approve: false })}
+              />
+            </View>
+            <View style={styles.button}>
+              <Button
+                title="Approve"
+                loading={review.isPending}
+                onPress={() => review.mutate({ sessionId: session.id, approve: true })}
+              />
+            </View>
+          </View>
+          <View style={styles.fixLink}>
+            <TextButton title="Fix the numbers" disabled={busy} onPress={() => setFixing(true)} />
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -128,5 +184,8 @@ const makeStyles = (colors: Palette) =>
     },
     button: {
       flex: 1,
+    },
+    fixLink: {
+      alignItems: 'center',
     },
   });

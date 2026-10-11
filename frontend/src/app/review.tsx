@@ -2,20 +2,14 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, TextButton } from '@/components/Button';
-import { Chips } from '@/components/Chips';
+import { FixFields, fixFrom, readFix } from '@/components/review/FixFields';
 import { SessionSummary } from '@/components/review/SessionSummary';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
-import { ErrorText, Label, Muted, Title } from '@/components/Typography';
+import { ErrorText, Muted, Title } from '@/components/Typography';
 import { fontSize, radius, spacing, type Palette } from '@/constants/theme';
 import { visibleAccent } from '@/lib/color';
-import {
-  durationInput,
-  parseDistanceMeters,
-  parseDurationSeconds,
-  todayInTimeZone,
-  useLoggingOptions,
-} from '@/lib/logging';
+import { todayInTimeZone } from '@/lib/logging';
 import {
   useConfirmFlagged,
   useCorrectFlagged,
@@ -64,23 +58,13 @@ function FlaggedCard({ session, team }: { session: MyFlaggedSession; team: MyTea
   const styles = useThemedStyles(makeStyles);
   const { scheme } = useTheme();
   const accent = visibleAccent(team.accentPrimary, scheme);
-  const options = useLoggingOptions(team.id);
   const confirm = useConfirmFlagged();
   const correct = useCorrectFlagged();
 
   const [fixing, setFixing] = useState(false);
   const [note, setNote] = useState('');
-  // The fix starts from what was logged.
-  const [typeId, setTypeId] = useState(session.activity_type_id);
-  const [intensityId, setIntensityId] = useState<string | null>(session.intensity_id);
-  const [duration, setDuration] = useState(durationInput(session.duration_seconds));
-  const [distance, setDistance] = useState(
-    session.distance_meters ? String(session.distance_meters / 1000) : '',
-  );
-
-  const durationSeconds = parseDurationSeconds(duration);
-  const distanceMeters = parseDistanceMeters(distance, 'km');
-  const distanceInvalid = Number.isNaN(distanceMeters);
+  const [fix, setFix] = useState(() => fixFrom(session));
+  const { durationSeconds, distanceMeters, valid } = readFix(fix);
   const busy = confirm.isPending || correct.isPending;
   const error = confirm.error ?? correct.error;
 
@@ -91,53 +75,7 @@ function FlaggedCard({ session, team }: { session: MyFlaggedSession; team: MyTea
         <Muted style={styles.small}>You already fixed this once, and it was flagged again.</Muted>
       ) : null}
 
-      {fixing ? (
-        <View style={styles.fields}>
-          <View style={styles.field}>
-            <Label>Activity</Label>
-            <Chips
-              options={(options.data?.types ?? []).map((t) => ({ value: t.id, label: t.name }))}
-              value={typeId}
-              onChange={(value) => value && setTypeId(value)}
-              accent={accent}
-            />
-          </View>
-          {options.data?.intensities.length ? (
-            <View style={styles.field}>
-              <Label>Intensity</Label>
-              <Chips
-                options={options.data.intensities.map((i) => ({ value: i.id, label: i.name }))}
-                value={intensityId}
-                onChange={setIntensityId}
-                accent={accent}
-                allowNone
-              />
-            </View>
-          ) : null}
-          <View style={styles.field}>
-            <Label>Time</Label>
-            <TextField
-              placeholder="45, 1h 15m or 39:40"
-              value={duration}
-              onChangeText={setDuration}
-              keyboardType="numbers-and-punctuation"
-              autoCapitalize="none"
-              autoCorrect={false}
-              error={durationSeconds === null ? 'Try something like 45, 1h 15m or 39:40' : null}
-            />
-          </View>
-          <View style={styles.field}>
-            <Label>Distance in km (optional)</Label>
-            <TextField
-              placeholder="0"
-              value={distance}
-              onChangeText={setDistance}
-              keyboardType="decimal-pad"
-              error={distanceInvalid ? 'Enter a number' : null}
-            />
-          </View>
-        </View>
-      ) : null}
+      {fixing ? <FixFields teamId={team.id} accent={accent} fix={fix} onChange={setFix} /> : null}
 
       <TextField
         placeholder="Add a note for your coach (optional)"
@@ -156,13 +94,13 @@ function FlaggedCard({ session, team }: { session: MyFlaggedSession; team: MyTea
             <Button
               title="Save fix"
               loading={correct.isPending}
-              disabled={durationSeconds === null || distanceInvalid}
+              disabled={!valid}
               onPress={() =>
                 durationSeconds !== null &&
                 correct.mutate({
                   sessionId: session.id,
-                  activityTypeId: typeId,
-                  intensityId,
+                  activityTypeId: fix.typeId,
+                  intensityId: fix.intensityId,
                   durationSeconds,
                   distanceMeters,
                   note,
@@ -211,12 +149,6 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-    },
-    fields: {
-      gap: spacing.lg,
-    },
-    field: {
-      gap: spacing.sm,
     },
     buttons: {
       flexDirection: 'row',

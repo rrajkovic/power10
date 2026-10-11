@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(21);
 
 create function pg_temp.new_user(user_id uuid, user_email text, user_name text)
 returns void language sql as $$
@@ -177,6 +177,35 @@ select throws_ok(
   $$ select public.confirm_flagged_session((select s1 from ids)) $$,
   'This workout isn''t waiting for your answer',
   'Once a coach has decided, the athlete can''t answer again'
+);
+
+-- ---------------------------------------------------------------------------
+-- A coach can fix the numbers and approve in one step, without waiting.
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$ select public.correct_and_approve_session(
+       (select s3 from ids), (select erg from ids), null, 50 * 60, 12000) $$,
+  'Only admins can review sessions',
+  'An athlete can''t use the coach''s fix'
+);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select lives_ok(
+  $$ select public.correct_and_approve_session(
+       (select s3 from ids), (select erg from ids), null, 50 * 60, 12000, 'Checked the monitor') $$,
+  'A coach can fix and approve a flagged workout'
+);
+reset role;
+select is(
+  (select verification_status::text || ' / ' || duration_seconds || ' / ' || credits || ' / ' || review_note
+   from public.sessions where id = (select s3 from ids)),
+  'passed / 3000 / 5.0 / Checked the monitor',
+  'The coach''s values are saved, credits recalculated, and it''s verified'
+);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select is(
+  (select count(*)::int from public.flagged_sessions((select id from team))),
+  0, 'Nothing is left to review'
 );
 
 select * from finish();

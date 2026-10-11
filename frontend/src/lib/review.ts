@@ -113,6 +113,26 @@ export function useReviewSession() {
   });
 }
 
+// Coach or admin: fix the numbers and approve, in one step. Doesn't wait for
+// the athlete's answer.
+export function useCorrectAndApprove() {
+  const reload = useReload();
+  return useMutation({
+    mutationFn: async (fix: Correction) => {
+      const { error } = await supabase.rpc('correct_and_approve_session', {
+        session: fix.sessionId,
+        new_activity_type_id: fix.activityTypeId,
+        new_intensity_id: fix.intensityId as string,
+        new_duration_seconds: fix.durationSeconds,
+        new_distance_meters: fix.distanceMeters as number,
+        note: fix.note.trim() || undefined,
+      });
+      if (error) throw error;
+    },
+    onSuccess: reload,
+  });
+}
+
 // Temporary links for showing private photos (they stop working after an hour).
 export function usePhotoUrls(paths: string[]) {
   return useQuery({

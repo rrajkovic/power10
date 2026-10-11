@@ -504,6 +504,9 @@ isOneToOne: false
 "confirm_flagged_session":
 { Args: { "note"?: string,"session": string }; Returns: undefined
                            },
+"correct_and_approve_session":
+{ Args: { "new_activity_type_id": string,"new_distance_meters": number,"new_duration_seconds": number,"new_intensity_id": string,"note"?: string,"session": string }; Returns: undefined
+                           },
 "correct_flagged_session":
 { Args: { "new_activity_type_id": string,"new_distance_meters": number,"new_duration_seconds": number,"new_intensity_id": string,"note"?: string,"session": string }; Returns: undefined
                            },
@@ -536,7 +539,7 @@ isOneToOne: false
       } },
 "flagged_sessions":
 { Args: { "team": string }; Returns: {
-              "activity_name": string,"athlete_id": string,"athlete_name": string,"athlete_responded_at": string,"athlete_response": Database["public"]['Enums']["athlete_response"],"athlete_response_note": string,"credits": number,"custom_label": string,"distance_meters": number,"duration_seconds": number,"flag_note": string,"id": string,"intensity_name": string,"photo_paths": (string)[],"session_date": string
+              "activity_name": string,"activity_type_id": string,"athlete_id": string,"athlete_name": string,"athlete_responded_at": string,"athlete_response": Database["public"]['Enums']["athlete_response"],"athlete_response_note": string,"credits": number,"custom_label": string,"distance_meters": number,"duration_seconds": number,"flag_note": string,"id": string,"intensity_id": string,"intensity_name": string,"photo_paths": (string)[],"session_date": string
             }[]
                            },
 "has_coach_rights":

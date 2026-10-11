@@ -194,6 +194,7 @@ A member who no longer has a verified email matching the team's domains gets **2
   - **Fix it:** change the activity, intensity, time or distance. The workout is marked **Corrected by athlete**, credits are recalculated, and the photos are checked again. If the check passes, the flag is gone; if not, it's flagged again and the athlete can still confirm it.
   - Either way the athlete can add a short note for the coach.
 - A coach or admin always has the final word. Their **Needs review** list (Team tab) shows every flagged workout with one of three labels: **Waiting for athlete**, **Confirmed by athlete**, **Corrected by athlete**. Answered ones are listed first. Approve makes it verified; Reject stops it counting. **Decided**
+- A coach or admin doesn't have to wait for the athlete. At any point, whatever label the workout has, they can **Approve**, **Reject**, or **Fix the numbers** (change the activity, intensity, time or distance; this saves the fix and approves it in one step). Any of the three settles the workout and removes it from the list. **Decided**
 - An athlete can't mark their own workout verified: the answer is only a signal for the coach. Once a coach has decided, the athlete can't answer again. **Decided**
 - If the AI can't be reached, the check is retried up to 3 times; after that the session stays "pending" for an admin to look at. **Decided**
 - Photos are shrunk on the phone (longest side 1600 px) before upload. **Decided**
