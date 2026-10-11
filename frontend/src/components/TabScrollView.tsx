@@ -11,7 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, type Palette } from '@/constants/theme';
-import { progressKey } from '@/lib/progress';
 import { useTheme, useThemedStyles } from '@/lib/theme';
 
 const isIOS = Platform.OS === 'ios';
@@ -86,7 +85,8 @@ export function TabScrollView({
 
   async function handleRefresh() {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: progressKey });
+    // Reload everything on screen: totals, the feed, flags.
+    await queryClient.invalidateQueries();
     setRefreshing(false);
   }
 

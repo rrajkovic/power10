@@ -2,12 +2,13 @@ import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, TextButton } from '@/components/Button';
+import { CheckList, CheckRow } from '@/components/CheckRow';
 import { Chips } from '@/components/Chips';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { ErrorText, Label, Muted, Title } from '@/components/Typography';
 import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
-import { readableOn, visibleAccent } from '@/lib/color';
+import { visibleAccent } from '@/lib/color';
 import {
   dayLabel,
   daysBefore,
@@ -306,8 +307,8 @@ export default function LogWorkout() {
               ) : allAthletes.length === 0 ? (
                 <Muted style={styles.hint}>No athletes on this team yet.</Muted>
               ) : (
-                <View style={styles.athleteList}>
-                  <AthleteRow
+                <CheckList>
+                  <CheckRow
                     name={`Everyone (${allAthletes.length})`}
                     selected={everyoneSelected}
                     accent={accent}
@@ -315,7 +316,7 @@ export default function LogWorkout() {
                     onPress={() => setAthleteIds(everyoneSelected ? [] : allAthletes.map((a) => a.id))}
                   />
                   {allAthletes.map((athlete) => (
-                    <AthleteRow
+                    <CheckRow
                       key={athlete.id}
                       name={athlete.name}
                       selected={athleteIds.includes(athlete.id)}
@@ -323,7 +324,7 @@ export default function LogWorkout() {
                       onPress={() => toggleAthlete(athlete.id)}
                     />
                   ))}
-                </View>
+                </CheckList>
               )}
               {forOthers ? (
                 <Muted style={styles.hint}>
@@ -551,39 +552,6 @@ export default function LogWorkout() {
   );
 }
 
-// One line in the "who is this for" list, with a checkbox.
-function AthleteRow({
-  name,
-  selected,
-  accent,
-  onPress,
-  bold = false,
-}: {
-  name: string;
-  selected: boolean;
-  accent: string;
-  onPress: () => void;
-  bold?: boolean;
-}) {
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={name}
-      onPress={onPress}
-      style={({ pressed }) => [styles.athleteRow, pressed && styles.faded]}
-    >
-      <View style={[styles.checkbox, selected && { backgroundColor: accent, borderColor: accent }]}>
-        {selected ? <Text style={[styles.check, { color: readableOn(accent) }]}>✓</Text> : null}
-      </View>
-      <Text style={[styles.athleteName, bold && styles.athleteNameBold]} numberOfLines={1}>
-        {name}
-      </Text>
-    </Pressable>
-  );
-}
-
 function DayButton({
   label,
   accessibilityLabel,
@@ -629,41 +597,6 @@ const makeStyles = (colors: Palette) =>
     },
     hint: {
       fontSize: fontSize.sm,
-    },
-    athleteList: {
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      paddingVertical: spacing.xs,
-    },
-    athleteRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      paddingVertical: spacing.sm + 2,
-      paddingHorizontal: spacing.lg,
-    },
-    checkbox: {
-      width: 22,
-      height: 22,
-      borderRadius: 6,
-      borderWidth: 1.5,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    check: {
-      fontSize: fontSize.sm,
-      fontWeight: fontWeight.bold,
-    },
-    athleteName: {
-      flex: 1,
-      fontSize: fontSize.md,
-      color: colors.text,
-    },
-    athleteNameBold: {
-      fontWeight: fontWeight.semibold,
     },
     photoRow: {
       flexDirection: 'row',

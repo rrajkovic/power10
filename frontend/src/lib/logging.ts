@@ -150,7 +150,12 @@ export function useLogSessions() {
       // Ask for the photo checks only once everything is safely saved.
       for (const s of saved) if (s.hasPhotos && s.ids.length === 1) requestVerification(s.ids[0]);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: progressKey }),
+    // Totals and the feed both change.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: progressKey }),
+        queryClient.invalidateQueries({ queryKey: ['feed'] }),
+      ]),
   });
 }
 

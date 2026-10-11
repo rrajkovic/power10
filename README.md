@@ -18,12 +18,13 @@ Power10 started as a web app for Penn Lightweight Rowing, where about 40 athlete
 - **Team view:** how many athletes are on target; coaches and admins also see who isn't yet.
 - **Logging:** activity, intensity, day, time, distance and notes, with a live credits preview.
 - **AI photo logging:** photograph an erg monitor, watch or fitness app and the form fills itself in. After saving, the workout is checked against its photo and mismatches are flagged for a coach.
+- **Flag review:** athletes confirm or correct a flagged workout; coaches approve, reject or fix it.
+- **Feed:** the team's workouts with photos, emoji reactions and comments; filter to yourself or chosen teammates; edit or delete your own.
 - **Look and feel:** light and dark themes, and each team's own colors.
 
 **Planned**
 
 - Coaches logging for an athlete, a group or the whole team
-- Feed with comments and reactions
 - Calendar of tests, races and scheduled workouts
 - Profile and settings
 - Sign in with Google and Apple

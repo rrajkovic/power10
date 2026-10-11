@@ -96,7 +96,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - A workout logged for athletes has no photo step, even for activities that normally need one, because it's already verified. **Decided**
 - A group log is saved all at once: either every athlete's session is saved or none is. The sessions share a group id so they can later be shown or undone together. **Decided**
 - Only athletes appear in the list (not other coaches), and not members who are locked out of the team. **Decided**
-- Built so far: logging for yourself with photos, and coaches logging for athletes. Still to build: editing and deleting a session. **In progress**
+- Built: logging for yourself with photos, coaches logging for athletes, and editing or deleting a workout (from the Feed). **Decided**
 
 ## Roles
 
@@ -222,7 +222,13 @@ A member who no longer has a verified email matching the team's domains gets **2
 ## Social
 
 - Feed, comments and reactions, visible to everyone on the team. The feed lives in the Feed tab. **Decided**
-- Reactions can be any emoji. **Decided**
+- Reactions can be any emoji. Six are one tap away (👏 🔥 💪 🙌 😮 ❤️); any other can be typed in. Tapping a reaction you already gave takes it back. **Decided**
+- **Feed, first version:** the team's workouts newest first, 20 at a time with "Load more". Each card shows who, when, the activity and intensity, time, distance, credits, notes, photos and reactions. Filters: **Everyone**, **My workouts**, **People** (tick any teammates). **Decided**
+- Tapping a workout opens it: bigger photos, comments, and for its athlete or an admin, **Edit** and **Delete**. Delete asks twice and takes the workout's photos, comments and reactions with it. **Decided**
+- Anyone on the team can comment. You can delete your own comments; admins can delete any. **Decided**
+- A workout a coach logged for an athlete says "logged by coach". **Decided**
+- The photo-check label (Verified, Checking photo, Flagged, Rejected) is shown only to the workout's athlete and to admins. A rejected workout disappears from everyone else's feed. **Decided**
+- Not built yet: editing a comment, live updates (the feed reloads when you pull down or come back to it), and re-checking the photo when a verified workout's numbers are edited afterwards. **Open**
 - Push notifications for comments and reactions. **Decided**
 - Users can turn notification types off in settings. **Proposed**
 

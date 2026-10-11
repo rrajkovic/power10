@@ -52,6 +52,7 @@ function useReload() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: reviewKey }),
       queryClient.invalidateQueries({ queryKey: progressKey }),
+      queryClient.invalidateQueries({ queryKey: ['feed'] }),
     ]);
 }
 
