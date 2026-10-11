@@ -1,16 +1,27 @@
-// Reads photos of a workout screen and returns what to put in the logging
-// form: time, distance, date, and the team's activity and intensity.
+// Reads photos of workout screens and returns the workouts to put in the
+// logging form.
+//
+// The AI reads each photo on its own (what kind of workout, time, distance,
+// date, and how confident it is). The readings are then merged into workouts
+// by groupPieces (_shared/group.ts): photos of the same activity are added
+// together into ONE workout, and different activities become separate ones.
 //
 // Called by the app while the form is open. Nothing is saved here.
 
-import { askGemini, READING_RULES, type Photo } from '../_shared/gemini.ts';
+import { askGemini, MIN_CONFIDENCE, READING_RULES, type Photo } from '../_shared/gemini.ts';
+import { groupPieces, type Piece } from '../_shared/group.ts';
 import { callerClient, corsHeaders, json } from '../_shared/http.ts';
 
-const MAX_PHOTOS = 4;
+const MAX_PHOTOS = 6;
 // About 3 MB per photo once decoded; the app shrinks them well below this.
 const MAX_BASE64_LENGTH = 4_000_000;
 
 type Body = { team_id?: string; photos?: Photo[] };
+
+function wholeNumber(value: unknown, min: number, max: number): number | null {
+  const n = Number(value);
+  return value !== null && Number.isInteger(n) && n >= min && n <= max ? n : null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -52,43 +63,69 @@ Deno.serve(async (req) => {
   const result = await askGemini({
     instructions: `You read workout screen photos so an athlete doesn't have to type the numbers in.
 ${READING_RULES}
-ACTIVITY: choose the one that fits best from this team's list: ${typeNames.join(', ')}. If nothing fits, leave it out.
+The photos may show DIFFERENT workouts (for example three rowing pieces and one bike ride). Do not add anything together and do not decide which photos belong together: report each photo on its own.
+pieces: exactly one entry per photo, in photo order ("photo" is 1 for the first photo, 2 for the second, and so on).
+ACTIVITY: for each photo, choose the one that fits best from this team's list: ${typeNames.join(', ')}. If nothing fits, leave it out.
 ${intensityNames.length ? `INTENSITY: only if the screen makes it clear (for example intervals with rest are hard work), choose from: ${intensityNames.join(', ')}. Otherwise leave it out.` : ''}
-NOTE: one short, friendly sentence for the athlete saying what you read (for example "Read 4 pieces: 80 min, 20.7 km."), or why you couldn't read it.`,
-    prompt: `Read ${photos.length === 1 ? 'this photo' : `these ${photos.length} photos`} of one training session.`,
+For a photo you cannot read, give confidence 1 and leave the numbers out.`,
+    prompt: `Read ${photos.length === 1 ? 'this photo' : `each of these ${photos.length} photos`}.`,
     photos,
     schema: {
       type: 'OBJECT',
       properties: {
-        readable: { type: 'BOOLEAN' },
-        seconds: { type: 'INTEGER', nullable: true },
-        distance_meters: { type: 'INTEGER', nullable: true },
-        date: { type: 'STRING', nullable: true },
-        activity: { type: 'STRING', nullable: true },
-        intensity: { type: 'STRING', nullable: true },
-        note: { type: 'STRING' },
+        pieces: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              photo: { type: 'INTEGER' },
+              activity: { type: 'STRING', nullable: true },
+              intensity: { type: 'STRING', nullable: true },
+              seconds: { type: 'INTEGER', nullable: true },
+              distance_meters: { type: 'INTEGER', nullable: true },
+              date: { type: 'STRING', nullable: true },
+              confidence: { type: 'INTEGER' },
+            },
+            required: ['photo', 'confidence'],
+          },
+        },
       },
-      required: ['readable', 'note'],
+      required: ['pieces'],
     },
   });
 
   if (!result.ok) return json({ error: result.message }, result.kind === 'busy' ? 503 : 500);
 
-  const read = result.json;
   const sameName = (a: unknown, b: string) =>
     typeof a === 'string' && a.trim().toLowerCase() === b.toLowerCase();
-  const seconds = Number(read.seconds);
-  const meters = Number(read.distance_meters);
 
+  // Keep only readings the database would accept, at most one per photo.
+  const pieces: Piece[] = [];
+  const raw = Array.isArray(result.json.pieces) ? result.json.pieces : [];
+  for (const entry of raw as Record<string, unknown>[]) {
+    const photo = wholeNumber(entry?.photo, 1, photos.length);
+    const seconds = wholeNumber(entry?.seconds, 1, 86_400);
+    if (photo === null || seconds === null) continue;
+    if (pieces.some((piece) => piece.photo === photo - 1)) continue;
+    pieces.push({
+      photo: photo - 1,
+      seconds,
+      distance_meters: wholeNumber(entry.distance_meters, 1, 1_000_000),
+      date: typeof entry.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) ? entry.date : null,
+      activity_type_id: types.data.find((type) => sameName(entry.activity, type.name))?.id ?? null,
+      intensity_id:
+        (intensities.data ?? []).find((intensity) => sameName(entry.intensity, intensity.name))?.id ??
+        null,
+      confidence: wholeNumber(entry.confidence, 1, 10) ?? 1,
+    });
+  }
+  const sessions = groupPieces(pieces, MIN_CONFIDENCE);
+
+  const read = new Set(pieces.map((piece) => piece.photo));
   return json({
-    readable: read.readable === true,
-    note: typeof read.note === 'string' ? read.note.slice(0, 300) : '',
-    // Only pass on values the database would accept.
-    seconds: Number.isInteger(seconds) && seconds >= 1 && seconds <= 86_400 ? seconds : null,
-    distance_meters: Number.isInteger(meters) && meters >= 1 && meters <= 1_000_000 ? meters : null,
-    date: typeof read.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(read.date) ? read.date : null,
-    activity_type_id: types.data.find((type) => sameName(read.activity, type.name))?.id ?? null,
-    intensity_id:
-      (intensities.data ?? []).find((intensity) => sameName(read.intensity, intensity.name))?.id ?? null,
+    sessions,
+    // Photos nothing could be read from.
+    unread: photos.map((_, index) => index).filter((index) => !read.has(index)),
+    min_confidence: MIN_CONFIDENCE,
   });
 });

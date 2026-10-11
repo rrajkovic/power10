@@ -3,6 +3,7 @@ import { GoalCards } from '@/components/home/GoalCards';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { Leaderboard } from '@/components/home/Leaderboard';
 import { TeamGlow } from '@/components/home/TeamGlow';
+import { FlaggedNotice } from '@/components/review/FlaggedNotice';
 import { TabScrollView } from '@/components/TabScrollView';
 import { Headline } from '@/components/Typography';
 import { spacing } from '@/constants/theme';
@@ -23,6 +24,7 @@ export default function Home() {
       background={<TeamGlow primary={currentTeam.accentPrimary} secondary={currentTeam.accentSecondary} />}
       header={<HomeHeader accent={accent} />}
     >
+      <FlaggedNotice teamId={currentTeam.id} />
       <GoalCards key={currentTeam.id} team={currentTeam} accent={accent} />
       <Headline style={styles.headline}>Who’s putting{'\n'}in the work?</Headline>
       {/* key: reset the leaderboard's period and metric when switching teams. */}

@@ -88,49 +88,67 @@ export type NewSession = {
   photos: WorkoutPhoto[];
 };
 
-// Saves a session (one per athlete) and its photos. The database works out
-// the credits, and marks sessions logged for someone else as verified;
-// afterwards every goal card and leaderboard reloads.
-export function useLogSession() {
+// Saves one workout: a session per athlete, plus its photos. Returns the ids
+// of the sessions it created.
+async function saveSession(session: NewSession): Promise<string[]> {
+  const groupLogId = session.athleteIds.length > 1 ? randomUuid() : null;
+  // One insert for all rows: either everyone's session is saved or nobody's.
+  const { data, error } = await supabase
+    .from('sessions')
+    .insert(
+      session.athleteIds.map((athleteId) => ({
+        team_id: session.teamId,
+        athlete_id: athleteId,
+        activity_type_id: session.activityTypeId,
+        intensity_id: session.intensityId,
+        custom_label: session.customLabel,
+        session_date: session.date,
+        duration_seconds: session.durationSeconds,
+        distance_meters: session.distanceMeters,
+        notes: session.notes,
+        group_log_id: groupLogId,
+      })),
+    )
+    .select('id');
+  if (error) throw error;
+  if (!data.length) throw new Error('Nothing was saved');
+  const ids = data.map((row) => row.id);
+
+  // Photos belong to a single session (your own).
+  if (session.photos.length && ids.length === 1) {
+    try {
+      await uploadSessionPhotos(session.teamId, ids[0], session.photos);
+    } catch (uploadError) {
+      // Don't leave a session behind without its photos.
+      await supabase.from('sessions').delete().in('id', ids);
+      throw uploadError;
+    }
+  }
+  return ids;
+}
+
+// Saves one or more workouts (several when photos showed different
+// activities). The database works out the credits, and marks sessions logged
+// for someone else as verified; afterwards every goal card and leaderboard
+// reloads.
+export function useLogSessions() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (session: NewSession) => {
-      const groupLogId = session.athleteIds.length > 1 ? randomUuid() : null;
-      // One insert for all rows: either everyone's session is saved or nobody's.
-      const { data: saved, error } = await supabase
-        .from('sessions')
-        .insert(
-          session.athleteIds.map((athleteId) => ({
-            team_id: session.teamId,
-            athlete_id: athleteId,
-            activity_type_id: session.activityTypeId,
-            intensity_id: session.intensityId,
-            custom_label: session.customLabel,
-            session_date: session.date,
-            duration_seconds: session.durationSeconds,
-            distance_meters: session.distanceMeters,
-            notes: session.notes,
-            group_log_id: groupLogId,
-          })),
-        )
-        .select('id, credits');
-      const data = saved?.[0];
-      if (!error && !data) throw new Error('Nothing was saved');
-      if (error || !data) throw error;
-
-      // Photos belong to a single session (your own).
-      if (session.photos.length && session.athleteIds.length === 1) {
-        try {
-          await uploadSessionPhotos(session.teamId, data.id, session.photos);
-        } catch (uploadError) {
-          // Don't leave a session behind without its photos: remove it so
-          // saving again doesn't log the workout twice.
-          await supabase.from('sessions').delete().eq('id', data.id);
-          throw uploadError;
+    mutationFn: async (sessions: NewSession[]) => {
+      const saved: { ids: string[]; hasPhotos: boolean }[] = [];
+      try {
+        for (const session of sessions) {
+          saved.push({ ids: await saveSession(session), hasPhotos: session.photos.length > 0 });
         }
-        requestVerification(data.id);
+      } catch (error) {
+        // All or nothing: if one workout fails, remove the ones saved before
+        // it, so trying again doesn't log them twice.
+        const ids = saved.flatMap((s) => s.ids);
+        if (ids.length) await supabase.from('sessions').delete().in('id', ids);
+        throw error;
       }
-      return data;
+      // Ask for the photo checks only once everything is safely saved.
+      for (const s of saved) if (s.hasPhotos && s.ids.length === 1) requestVerification(s.ids[0]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: progressKey }),
   });

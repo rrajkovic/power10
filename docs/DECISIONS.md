@@ -183,8 +183,18 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Sessions count as soon as they're logged. Sessions the AI fails or finds suspicious are flagged for admins and keep counting until an admin rejects them. **Decided**
 - Gallery photos (not taken live in the app) are marked for admins. **Decided**
 - Photos are read by Google's Gemini (a model that understands images), called from Supabase Edge Functions so the API key never reaches the app. Which models to try, and in what order, is a setting (`GEMINI_MODELS`). On-device reading is not planned for now. **Decided**
-- **Auto-fill:** adding a photo to the logging form has the AI read the time, distance, date, activity and intensity off the screen and fill in the form. The athlete checks it and can change anything before saving. Up to 4 photos per session; several photos are pieces of the same session and are added together. Only work time counts, never rest. **Decided**
-- **Check after saving:** the AI compares the saved session with its photos (time and distance within about 10%) and marks it passed or flagged, with a one-sentence reason for the coach. A screen dated before the session is fine (logged late); one dated after is flagged. **Decided**
+- **Auto-fill:** adding photos to the logging form has the AI read each screen (erg, bike erg, watch, app): activity, intensity, time, distance, date. The athlete checks it and can change anything before saving. Up to 6 photos at once. Only work time counts, never rest. **Decided**
+- **Several workouts from one set of photos:** photos of the same activity are added together into one workout; a different activity, intensity or day becomes a separate workout. Example: photos of erg 20 min, berg 40 min, erg 20 min, erg 20 min are logged as one 60-minute erg workout and one 40-minute berg workout. The form lists the workouts found, each can be checked and edited, and they are saved together (all or nothing). **Decided**
+- The AI only reads each photo. The grouping and adding up is done by ordinary code, so the totals are always exact. A value the AI couldn't read (no date on the screen, unclear intensity) doesn't split a workout. **Decided**
+- **Confidence:** the AI rates how sure it is that it read a screen correctly, from 1 to 10. A workout's confidence is the lowest of its photos. Below **7** it isn't trusted: the form warns the athlete, and after saving the session is flagged for a coach even if the numbers match. The threshold is one setting (`MIN_CONFIDENCE`). **Decided**
+- **Check after saving:** the AI compares each saved session with its own photos (time and distance within about 10%) and marks it passed or flagged, with a one-sentence reason for the coach. A screen dated before the session is fine (logged late); one dated after is flagged. Athletes can't set this themselves: it's decided on the server. **Decided**
+- A photo that can't be read at all isn't attached to any workout when others were read. If nothing could be read, the athlete types the workout in, the photos stay attached, and the check flags it. **Decided**
+- **Answering a flag:** when one of your workouts is flagged, Home shows "1 workout needs a quick check". The review screen shows what was logged, why it was flagged, and the photos, with two choices: **Decided**
+  - **It's correct:** the workout stays flagged, marked **Confirmed by athlete**.
+  - **Fix it:** change the activity, intensity, time or distance. The workout is marked **Corrected by athlete**, credits are recalculated, and the photos are checked again. If the check passes, the flag is gone; if not, it's flagged again and the athlete can still confirm it.
+  - Either way the athlete can add a short note for the coach.
+- A coach or admin always has the final word. Their **Needs review** list (Team tab) shows every flagged workout with one of three labels: **Waiting for athlete**, **Confirmed by athlete**, **Corrected by athlete**. Answered ones are listed first. Approve makes it verified; Reject stops it counting. **Decided**
+- An athlete can't mark their own workout verified: the answer is only a signal for the coach. Once a coach has decided, the athlete can't answer again. **Decided**
 - If the AI can't be reached, the check is retried up to 3 times; after that the session stays "pending" for an admin to look at. **Decided**
 - Photos are shrunk on the phone (longest side 1600 px) before upload. **Decided**
 - Not built yet: catching a reused photo (the database supports it, the app doesn't send a fingerprint yet), a limit on how many photo reads one person can trigger, and a background job that retries waiting checks. **Open**
@@ -241,6 +251,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 
 - Everyone sees everyone's numbers, bars and rank, and their **own** "X to go". **Decided**
 - Only coaches and admins see who else is behind: "X to go" on other people, the grey "behind" look, the orange over-max warning, and AI verification flags. Athletes see a plain scoreboard. **Decided**
+- Athletes do see flags on their **own** workouts, so they can answer them (see "Answering a flag"). They never see anyone else's. **Decided**
 
 ### Goal cards (Home)
 

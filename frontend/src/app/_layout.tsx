@@ -67,6 +67,7 @@ function RootNavigator() {
         <Stack.Screen name="(app)" />
         {/* Slides up over the tabs. */}
         <Stack.Screen name="log" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="review" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={stage === 'no-team'}>
         <Stack.Screen name="(onboarding)" />

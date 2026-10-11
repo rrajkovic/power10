@@ -124,10 +124,16 @@ export async function askGemini(options: {
   };
 }
 
+// Below this (out of 10), a reading isn't trusted: the session is flagged
+// for a coach to look at, and the form warns the athlete.
+export const MIN_CONFIDENCE = 7;
+
 // What every prompt needs to know about reading workout screens.
-export const READING_RULES = `The photos show a workout summary: a rowing or bike erg monitor (such as a Concept2 PM5), a sports watch, a GPS or bike computer, a treadmill, or a fitness-app summary screen.
+export const READING_RULES = `The photos show workout summaries: a rowing or bike erg monitor (such as a Concept2 PM5), a sports watch, a GPS or bike computer, a treadmill, or a fitness-app summary screen.
 ONLY WORK TIME COUNTS, never rest. On an interval screen, read the totals from the summary row directly under the column headers (work time, total meters). Rows starting with "r" are rest: never count their time or meters. A "Total Time" that includes rest is not the workout time.
 ROWER OR BIKE: Concept2 rowing and bike ergs share the same monitor. Tell them apart by the units, never the layout: pace per 500m and a rate in s/m or spm is rowing; pace per 1000m or a rate in rpm is a bike.
-SEVERAL PHOTOS are different pieces of the SAME session, and every photo counts, even when two screens show identical numbers (people repeat the same piece, like 4 x 20:00). Add the pieces together. Within one photo, split rows under the summary row are part of that piece: never add them on top.
-NEVER GUESS. If a number is not clearly readable, leave it out. Do not judge photo quality, lighting or styling.
-DATES: report the date shown on the screen as YYYY-MM-DD. If no date is visible, report none.`;
+EVERY PHOTO IS ITS OWN PIECE and every photo counts, even when two screens show identical numbers (people repeat the same piece, like 3 x 20:00). Within one photo, split rows under the summary row are part of that piece: never count them on top. An interval screen's summary row already totals its reps, so it is one piece.
+NEVER GUESS. If a number is not clearly readable, leave it out. Do not judge photo quality, lighting or styling, only whether you can read the numbers.
+DATES: report the date shown on the screen as YYYY-MM-DD. If no date is visible, report none.
+CONFIDENCE: how sure you are that you read the numbers correctly, as a whole number from 1 to 10.
+10 = every digit is sharp and unambiguous. 8-9 = clear, with a trivial doubt. 5-7 = readable but some digits are uncertain (glare, blur, angle, cut off). 2-4 = mostly guessing. 1 = not a workout screen, or unreadable. Be honest: a low number only asks a coach to take a look.`;

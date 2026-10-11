@@ -3,15 +3,16 @@
 // Adding a photo to a session puts a row in `verification_checks` (status
 // 'queued'). The app then calls this function with the session's id. It reads
 // the photos with Gemini, compares them with what the athlete logged, and
-// records 'passed' or 'flagged'. Flagged sessions keep counting until an
-// admin rejects them.
+// records 'passed' or 'flagged'. It's also flagged when the AI isn't
+// confident it read the screen correctly, even if the numbers seem to match.
+// Flagged sessions keep counting until an admin rejects them.
 //
 // The caller only chooses WHICH session to check, never the result.
 
-import { askGemini, READING_RULES, type Photo } from '../_shared/gemini.ts';
+import { askGemini, MIN_CONFIDENCE, READING_RULES, type Photo } from '../_shared/gemini.ts';
 import { adminClient, callerClient, corsHeaders, json } from '../_shared/http.ts';
 
-const MAX_PHOTOS = 4;
+const MAX_PHOTOS = 6;
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
   const result = await askGemini({
     instructions: `You check proof photos for a sports team's training log.
 ${READING_RULES}
-Compare what you read with what the athlete logged.
+All the photos are pieces of this ONE session: add their work time and meters together, then compare the total with what the athlete logged.
 PASS when a workout screen is readable and its work time is within about 10% of the logged time (or the time isn't shown but the screen clearly shows a matching workout), and any logged distance is within about 10% of the screen's.
 FLAG when the numbers don't match, when the logged time looks like it includes rest, when the photos don't show a workout, or when you can't read them. A flag is only a note for a coach to look, so explain it in one plain sentence that names the numbers (for example "Logged 71 min, but the screen shows 59 min of work.").
 A screen dated before the logged date is fine (a workout logged late). Flag a screen dated AFTER the logged date. Never flag because no date is visible.`,
@@ -130,8 +131,9 @@ Check ${photos.length === 1 ? 'the photo' : `the ${photos.length} photos`}.`,
         seconds: { type: 'INTEGER', nullable: true },
         distance_meters: { type: 'INTEGER', nullable: true },
         date: { type: 'STRING', nullable: true },
+        confidence: { type: 'INTEGER' },
       },
-      required: ['matches', 'note'],
+      required: ['matches', 'note', 'confidence'],
     },
   });
 
@@ -147,16 +149,29 @@ Check ${photos.length === 1 ? 'the photo' : `the ${photos.length} photos`}.`,
     return json({ status: 'queued', error: result.message }, 503);
   }
 
-  const verdict = result.json.matches === true ? 'passed' : 'flagged';
-  const note = typeof result.json.note === 'string' ? result.json.note.slice(0, 300) : null;
+  // A missing or odd confidence counts as the lowest.
+  const rawConfidence = Number(result.json.confidence);
+  const confidence =
+    Number.isInteger(rawConfidence) && rawConfidence >= 1 && rawConfidence <= 10 ? rawConfidence : 1;
+  const matches = result.json.matches === true;
+  const unsure = confidence < MIN_CONFIDENCE;
+
+  const verdict = matches && !unsure ? 'passed' : 'flagged';
+  const aiNote = typeof result.json.note === 'string' ? result.json.note.slice(0, 300) : '';
+  // Numbers matched but the photo was hard to read: say that, so the coach
+  // knows why it needs a look.
+  const note =
+    matches && unsure
+      ? `The photo was hard to read (confidence ${confidence}/10). ${aiNote}`.trim()
+      : aiNote || null;
   const applied = await admin.rpc('apply_verification', {
     check_id: checkId,
     check_verdict: verdict,
     check_note: note,
-    check_result: result.json,
+    check_result: { ...result.json, confidence },
     check_engine: result.model,
   });
   if (applied.error) return fail('The result could not be saved.');
 
-  return json({ status: 'done', verdict, note });
+  return json({ status: 'done', verdict, note, confidence });
 });

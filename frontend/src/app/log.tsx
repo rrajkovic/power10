@@ -20,7 +20,7 @@ import {
   parseDurationSeconds,
   todayInTimeZone,
   useLoggingOptions,
-  useLogSession,
+  useLogSessions,
   useTeamAthletes,
   type DistanceUnit,
 } from '@/lib/logging';
@@ -36,6 +36,40 @@ const DISTANCE_UNITS: { value: DistanceUnit; label: string }[] = [
   { value: 'mi', label: 'mi' },
 ];
 
+// One workout being filled in. Usually there's just one; photos of different
+// activities (say three erg screens and a bike ride) give several, and they
+// are all saved together.
+type Draft = {
+  typeId: string | null;
+  intensityId: string | null;
+  customLabel: string;
+  // How many days before today (0 = today).
+  daysAgo: number;
+  duration: string;
+  distance: string;
+  unit: DistanceUnit;
+  notes: string;
+  // Which of the picked photos belong to this workout.
+  photoIndexes: number[];
+  // How sure the AI was when it read them (1 to 10); null if typed by hand.
+  confidence: number | null;
+  lowConfidence: boolean;
+};
+
+const EMPTY_DRAFT: Draft = {
+  typeId: null,
+  intensityId: null,
+  customLabel: '',
+  daysAgo: 0,
+  duration: '',
+  distance: '',
+  unit: 'km',
+  notes: '',
+  photoIndexes: [],
+  confidence: null,
+  lowConfidence: false,
+};
+
 // The "Log a workout" sheet. It slides up over whichever tab you're on.
 export default function LogWorkout() {
   const styles = useThemedStyles(makeStyles);
@@ -43,22 +77,16 @@ export default function LogWorkout() {
   const { session } = useSession();
   const { currentTeam } = useTeams();
   const options = useLoggingOptions(currentTeam?.id);
-  const logSession = useLogSession();
+  const logSessions = useLogSessions();
   // Coaches and admins can log for athletes instead of themselves.
   const canLogForOthers = !!currentTeam?.isAdmin;
   const athletes = useTeamAthletes(currentTeam?.id, canLogForOthers);
   const [forOthers, setForOthers] = useState(false);
   const [athleteIds, setAthleteIds] = useState<string[]>([]);
 
-  const [typeId, setTypeId] = useState<string | null>(null);
-  const [intensityId, setIntensityId] = useState<string | null>(null);
-  const [customLabel, setCustomLabel] = useState('');
-  // How many days before today (0 = today).
-  const [daysAgo, setDaysAgo] = useState(0);
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-  const [unit, setUnit] = useState<DistanceUnit>('km');
-  const [notes, setNotes] = useState('');
+  const [drafts, setDrafts] = useState<Draft[]>([EMPTY_DRAFT]);
+  // Which workout the form is showing.
+  const [current, setCurrent] = useState(0);
   const [photos, setPhotos] = useState<WorkoutPhoto[]>([]);
   // What the AI is doing with the photos, and what it said.
   const [reading, setReading] = useState(false);
@@ -73,33 +101,54 @@ export default function LogWorkout() {
 
   const types = options.data?.types ?? [];
   const intensities = options.data?.intensities ?? [];
-  // Start on the team's first type until you pick one.
-  const type = types.find((t) => t.id === typeId) ?? types[0] ?? null;
-
   const today = todayInTimeZone(currentTeam.timeZone);
-  const date = addDays(today, -daysAgo);
 
-  const durationSeconds = parseDurationSeconds(duration);
-  const distanceMeters = parseDistanceMeters(distance, unit);
-  const distanceInvalid = Number.isNaN(distanceMeters);
+  // Everything worked out from what's typed into one workout.
+  function check(draft: Draft) {
+    // Start on the team's first type until you pick one.
+    const type = types.find((t) => t.id === draft.typeId) ?? types[0] ?? null;
+    const durationSeconds = parseDurationSeconds(draft.duration);
+    const distanceMeters = parseDistanceMeters(draft.distance, draft.unit);
+    const distanceInvalid = Number.isNaN(distanceMeters);
+    const durationError = !draft.duration.trim()
+      ? 'How long was it?'
+      : durationSeconds === null
+        ? 'Try something like 45, 1h 15m or 39:40'
+        : null;
+    const labelError = type?.is_custom && !draft.customLabel.trim() ? 'What did you do?' : null;
+    // Sessions a coach logs for athletes are verified already, so no photo.
+    const photoError =
+      !forOthers && type?.requires_photo && draft.photoIndexes.length === 0
+        ? `${type.name} needs a photo of your screen.`
+        : null;
+    return {
+      type,
+      date: addDays(today, -draft.daysAgo),
+      durationSeconds,
+      distanceMeters,
+      distanceInvalid,
+      durationError,
+      labelError,
+      photoError,
+      valid: !!type && !durationError && !labelError && !photoError && !distanceInvalid,
+    };
+  }
 
-  const rule = type ? findCreditRule(options.data?.rules ?? [], type.id, intensityId) : null;
+  const draft = drafts[Math.min(current, drafts.length - 1)];
+  const { type, date, durationSeconds, distanceMeters, distanceInvalid, durationError, labelError, photoError } =
+    check(draft);
+
+  // Changes the workout the form is showing.
+  function update(changes: Partial<Draft>) {
+    setDrafts(drafts.map((d, index) => (index === current ? { ...d, ...changes } : d)));
+  }
+
+  const rule = type ? findCreditRule(options.data?.rules ?? [], type.id, draft.intensityId) : null;
   const credits = estimateCredits(rule, durationSeconds, distanceInvalid ? null : distanceMeters);
 
-  const durationError = !duration.trim()
-    ? 'How long was it?'
-    : durationSeconds === null
-      ? 'Try something like 45, 1h 15m or 39:40'
-      : null;
-  const labelError = type?.is_custom && !customLabel.trim() ? 'What did you do?' : null;
-  // Sessions a coach logs for athletes are verified already, so no photo.
-  const photoError =
-    !forOthers && type?.requires_photo && photos.length === 0
-      ? `${type.name} needs a photo of your screen.`
-      : null;
   const athletesError = forOthers && athleteIds.length === 0 ? 'Pick at least one athlete.' : null;
-  const canSave =
-    !!type && !durationError && !labelError && !photoError && !athletesError && !distanceInvalid;
+  // Logging for athletes saves only the workout on screen (there are no photos).
+  const toSave = forOthers ? [draft] : drafts;
 
   const allAthletes = athletes.data ?? [];
   const everyoneSelected = allAthletes.length > 0 && athleteIds.length === allAthletes.length;
@@ -108,38 +157,67 @@ export default function LogWorkout() {
     setAthleteIds(athleteIds.includes(id) ? athleteIds.filter((a) => a !== id) : [...athleteIds, id]);
   }
 
-  // Has the AI read the photos and fills in whatever it could. The athlete
-  // can still change anything before saving.
-  async function readPhotos(current: WorkoutPhoto[]) {
+  // Has the AI read the photos and turns what it found into workouts: one per
+  // activity. The athlete can still change anything before saving.
+  async function readPhotos(currentPhotos: WorkoutPhoto[]) {
     const thisRead = ++latestRead.current;
     setPhotoNote(null);
-    if (current.length === 0) {
+    const everyPhoto = currentPhotos.map((_, index) => index);
+    // Until (or unless) the photos are read, they all go with one workout.
+    const keepTyped = (): Draft[] => [
+      { ...drafts[0], photoIndexes: everyPhoto, confidence: null, lowConfidence: false },
+    ];
+    if (currentPhotos.length === 0) {
       setReading(false);
+      setDrafts(keepTyped());
+      setCurrent(0);
       return;
     }
     setReading(true);
     try {
-      const read = await readWorkoutPhotos(currentTeam!.id, current);
+      const read = await readWorkoutPhotos(currentTeam!.id, currentPhotos);
       if (thisRead !== latestRead.current) return;
-      if (read.seconds !== null) setDuration(durationInput(read.seconds));
-      if (read.distance_meters !== null) {
-        const km = read.distance_meters >= 1000;
-        setUnit(km ? 'km' : 'm');
-        setDistance(String(km ? read.distance_meters / 1000 : read.distance_meters));
+      setCurrent(0);
+      if (read.sessions.length === 0) {
+        setDrafts(keepTyped());
+        setPhotoNote({
+          text: 'Couldn’t read that. You can type it in; a coach will be asked to check the photo.',
+          isError: true,
+        });
+        return;
       }
-      if (read.activity_type_id) setTypeId(read.activity_type_id);
-      if (read.intensity_id) setIntensityId(read.intensity_id);
-      if (read.date) {
-        const before = daysBefore(read.date, today);
-        // Ignore dates in the future or absurdly old (a monitor with a wrong clock).
-        if (before >= 0 && before <= 60) setDaysAgo(before);
-      }
-      setPhotoNote({
-        text: read.note || (read.readable ? 'Filled in from your photo.' : 'Couldn’t read that photo.'),
-        isError: !read.readable,
-      });
+      setDrafts(
+        read.sessions.map((found) => {
+          const km = found.distance_meters !== null && found.distance_meters >= 1000;
+          const before = found.date ? daysBefore(found.date, today) : 0;
+          return {
+            ...EMPTY_DRAFT,
+            typeId: found.activity_type_id,
+            intensityId: found.intensity_id,
+            // Ignore dates in the future or absurdly old (a monitor with a wrong clock).
+            daysAgo: before >= 0 && before <= 60 ? before : 0,
+            duration: durationInput(found.seconds),
+            distance:
+              found.distance_meters === null
+                ? ''
+                : String(km ? found.distance_meters / 1000 : found.distance_meters),
+            unit: km || found.distance_meters === null ? 'km' : 'm',
+            photoIndexes: found.photos,
+            confidence: found.confidence,
+            lowConfidence: found.low_confidence,
+          };
+        }),
+      );
+      const found =
+        read.sessions.length === 1 ? 'Filled in from your photos.' : `Found ${read.sessions.length} workouts.`;
+      const unread = read.unread.length
+        ? ` Couldn’t read photo ${read.unread.map((index) => index + 1).join(', ')}, so it won’t be attached.`
+        : '';
+      setPhotoNote({ text: `${found}${unread} Check before saving.`, isError: false });
     } catch (error) {
       if (thisRead !== latestRead.current) return;
+      setDrafts(keepTyped());
+      setCurrent(0);
       setPhotoNote({ text: (error as Error).message, isError: true });
     } finally {
       if (thisRead === latestRead.current) setReading(false);
@@ -166,22 +244,36 @@ export default function LogWorkout() {
 
   function save() {
     setTriedToSave(true);
-    if (!canSave || !type || durationSeconds === null) return;
-    logSession.mutate(
-      {
+    if (athletesError || reading) return;
+    const checked = toSave.map(check);
+    // Show the first workout that still needs something.
+    const firstInvalid = checked.findIndex((c) => !c.valid);
+    if (firstInvalid !== -1) {
+      if (!forOthers) setCurrent(firstInvalid);
+      return;
+    }
+    logSessions.mutate(
+      toSave.map((d, index) => ({
         teamId: currentTeam!.id,
         athleteIds: forOthers ? athleteIds : [session!.user.id],
-        activityTypeId: type.id,
-        intensityId,
-        customLabel: type.is_custom ? customLabel.trim() : null,
-        date,
-        durationSeconds,
-        distanceMeters: distanceMeters,
-        notes: notes.trim() || null,
-        photos: forOthers ? [] : photos,
-      },
+        activityTypeId: checked[index].type!.id,
+        intensityId: d.intensityId,
+        customLabel: checked[index].type!.is_custom ? d.customLabel.trim() : null,
+        date: checked[index].date,
+        durationSeconds: checked[index].durationSeconds!,
+        distanceMeters: checked[index].distanceMeters,
+        notes: d.notes.trim() || null,
+        photos: forOthers ? [] : d.photoIndexes.map((i) => photos[i]).filter(Boolean),
+      })),
       { onSuccess: () => router.back() },
     );
+  }
+
+  // "Erg · 1 h", for the list of workouts found in the photos.
+  function draftLabel(d: Draft) {
+    const c = check(d);
+    const time = c.durationSeconds !== null ? formatDuration(c.durationSeconds) : 'no time yet';
+    return `${c.type?.name ?? 'Workout'} · ${time}`;
   }
 
   return (
@@ -244,15 +336,24 @@ export default function LogWorkout() {
 
           {forOthers ? null : (
             <View style={styles.field}>
-              <Label>Photo{type?.requires_photo ? '' : ' (optional)'}</Label>
+              <Label>Photos{type?.requires_photo ? '' : ' (optional)'}</Label>
               <Muted style={styles.hint}>
-                Add a photo of your erg, watch or app screen and we’ll fill in the rest.
+                Add photos of your erg, watch or app screens and we’ll fill in the rest. Different
+                activities are logged as separate workouts.
               </Muted>
               {photos.length ? (
                 <View style={styles.photoRow}>
                   {photos.map((photo, index) => (
                     <View key={photo.uri}>
                       <Image source={{ uri: photo.uri }} style={styles.photo} />
+                      {/* With several workouts, show which one each photo went to. */}
+                      {drafts.length > 1 && drafts.some((d) => d.photoIndexes.includes(index)) ? (
+                        <View style={styles.photoBadge}>
+                          <Text style={styles.photoBadgeText}>
+                            {drafts.findIndex((d) => d.photoIndexes.includes(index)) + 1}
+                          </Text>
+                        </View>
+                      ) : null}
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`Remove photo ${index + 1}`}
@@ -282,32 +383,59 @@ export default function LogWorkout() {
               {reading ? (
                 <View style={styles.readingRow}>
                   <ActivityIndicator color={colors.textMuted} />
-                  <Muted style={styles.hint}>Reading your photo…</Muted>
+                  <Muted style={styles.hint}>
+                    {photos.length === 1 ? 'Reading your photo…' : 'Reading your photos…'}
+                  </Muted>
                 </View>
               ) : photoNote ? (
                 photoNote.isError ? (
                   <ErrorText>{photoNote.text}</ErrorText>
                 ) : (
-                  <Muted style={styles.hint}>{photoNote.text} Check it before saving.</Muted>
+                  <Muted style={styles.hint}>{photoNote.text}</Muted>
                 )
               ) : null}
               {triedToSave && photoError ? <ErrorText>{photoError}</ErrorText> : null}
             </View>
           )}
 
+          {!forOthers && drafts.length > 1 ? (
+            <View style={styles.field}>
+              <Label>Workouts found</Label>
+              <Chips
+                options={drafts.map((d, index) => ({
+                  value: String(index),
+                  label: `${index + 1} · ${draftLabel(d)}`,
+                }))}
+                value={String(current)}
+                onChange={(value) => value !== null && setCurrent(Number(value))}
+                accent={accent}
+              />
+              <Muted style={styles.hint}>Tap one to check or change it. They’re all saved together.</Muted>
+            </View>
+          ) : null}
+
+          {!forOthers && draft.lowConfidence ? (
+            <View style={styles.warning}>
+              <Text style={styles.warningText}>
+                Hard to read (confidence {draft.confidence}/10). Check the numbers below. A coach will
+                be asked to take a look at this one.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.field}>
             <Label>Activity</Label>
             <Chips
               options={types.map((t) => ({ value: t.id, label: t.name }))}
               value={type?.id ?? null}
-              onChange={setTypeId}
+              onChange={(typeId) => update({ typeId })}
               accent={accent}
             />
             {type?.is_custom ? (
               <TextField
                 placeholder="What did you do? (e.g. Swim, Hike)"
-                value={customLabel}
-                onChangeText={setCustomLabel}
+                value={draft.customLabel}
+                onChangeText={(customLabel) => update({ customLabel })}
                 maxLength={60}
                 error={triedToSave ? labelError : null}
               />
@@ -319,8 +447,8 @@ export default function LogWorkout() {
               <Label>Intensity</Label>
               <Chips
                 options={intensities.map((i) => ({ value: i.id, label: i.name }))}
-                value={intensityId}
-                onChange={setIntensityId}
+                value={draft.intensityId}
+                onChange={(intensityId) => update({ intensityId })}
                 accent={accent}
                 allowNone
               />
@@ -330,13 +458,13 @@ export default function LogWorkout() {
           <View style={styles.field}>
             <Label>When</Label>
             <View style={styles.dateRow}>
-              <DayButton label="‹" accessibilityLabel="Previous day" onPress={() => setDaysAgo(daysAgo + 1)} />
+              <DayButton label="‹" accessibilityLabel="Previous day" onPress={() => update({ daysAgo: draft.daysAgo + 1 })} />
               <Text style={styles.date}>{dayLabel(date, today)}</Text>
               <DayButton
                 label="›"
                 accessibilityLabel="Next day"
-                disabled={daysAgo === 0}
-                onPress={() => setDaysAgo(daysAgo - 1)}
+                disabled={draft.daysAgo === 0}
+                onPress={() => update({ daysAgo: draft.daysAgo - 1 })}
               />
             </View>
           </View>
@@ -345,8 +473,8 @@ export default function LogWorkout() {
             <Label>Time</Label>
             <TextField
               placeholder="45, 1h 15m or 39:40"
-              value={duration}
-              onChangeText={setDuration}
+              value={draft.duration}
+              onChangeText={(duration) => update({ duration })}
               keyboardType="numbers-and-punctuation"
               autoCapitalize="none"
               autoCorrect={false}
@@ -363,16 +491,16 @@ export default function LogWorkout() {
               <View style={styles.distanceInput}>
                 <TextField
                   placeholder="0"
-                  value={distance}
-                  onChangeText={setDistance}
+                  value={draft.distance}
+                  onChangeText={(distance) => update({ distance })}
                   keyboardType="decimal-pad"
                   error={distanceInvalid ? 'Enter a number' : null}
                 />
               </View>
               <Chips
                 options={DISTANCE_UNITS}
-                value={unit}
-                onChange={(value) => value && setUnit(value)}
+                value={draft.unit}
+                onChange={(unit) => unit && update({ unit })}
                 accent={colors.primary}
               />
             </View>
@@ -382,8 +510,8 @@ export default function LogWorkout() {
             <Label>Notes (optional)</Label>
             <TextField
               placeholder="How did it go?"
-              value={notes}
-              onChangeText={setNotes}
+              value={draft.notes}
+              onChangeText={(notes) => update({ notes })}
               multiline
               maxLength={2000}
               style={styles.notes}
@@ -400,19 +528,22 @@ export default function LogWorkout() {
             </Text>
           </View>
 
-          {logSession.isError ? (
+          {logSessions.isError ? (
             <ErrorText>
-              Couldn’t save: {logSession.error.message || 'check your connection and try again'}.
+              Couldn’t save: {logSessions.error.message || 'check your connection and try again'}.
             </ErrorText>
           ) : null}
           <Button
             title={
               forOthers && athleteIds.length > 0
                 ? `Save for ${athleteIds.length} ${athleteIds.length === 1 ? 'athlete' : 'athletes'}`
-                : 'Save workout'
+                : toSave.length > 1
+                  ? `Save ${toSave.length} workouts`
+                  : 'Save workout'
             }
             onPress={save}
-            loading={logSession.isPending}
+            loading={logSessions.isPending}
+            disabled={reading}
           />
         </View>
       )}
@@ -545,6 +676,32 @@ const makeStyles = (colors: Palette) =>
       height: 72,
       borderRadius: radius.md,
       backgroundColor: colors.track,
+    },
+    photoBadge: {
+      position: 'absolute',
+      left: 4,
+      bottom: 4,
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+    },
+    photoBadgeText: {
+      fontSize: fontSize.xs,
+      fontWeight: fontWeight.bold,
+      color: colors.onPrimary,
+    },
+    warning: {
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.caution,
+    },
+    warningText: {
+      fontSize: fontSize.sm,
+      color: colors.caution,
     },
     removePhoto: {
       position: 'absolute',

@@ -8,7 +8,7 @@ import { supabase } from './supabase';
 // The AI runs in Supabase Edge Functions (supabase/functions), never in the
 // app, so the API key stays on the server.
 
-export const MAX_PHOTOS = 4;
+export const MAX_PHOTOS = 6;
 // Photos are shrunk so the longest side is at most this many pixels: plenty
 // to read a screen, and a fraction of the upload size.
 const MAX_SIDE = 1600;
@@ -54,16 +54,27 @@ export async function pickPhotos(from: WorkoutPhoto['source'], limit: number): P
   return Promise.all(result.assets.slice(0, limit).map((asset) => shrink(asset, from)));
 }
 
-// What the AI read off the photos. Anything it couldn't read is null.
-export type PhotoRead = {
-  readable: boolean;
-  // A short sentence for the athlete: what was read, or why it couldn't be.
-  note: string;
-  seconds: number | null;
-  distance_meters: number | null;
-  date: string | null;
+// One workout the AI found in the photos. Photos of the same activity are
+// already added together (see supabase/functions/_shared/group.ts). Anything
+// it couldn't read is null.
+export type ReadSession = {
   activity_type_id: string | null;
   intensity_id: string | null;
+  seconds: number;
+  distance_meters: number | null;
+  date: string | null;
+  // 1 to 10: how sure the AI is that it read the screen correctly.
+  confidence: number;
+  // True when that's too low to trust; a coach will be asked to look.
+  low_confidence: boolean;
+  // Which photos belong to this workout (positions in the list that was sent).
+  photos: number[];
+};
+
+export type PhotoRead = {
+  sessions: ReadSession[];
+  // Photos nothing could be read from.
+  unread: number[];
 };
 
 async function functionError(error: unknown, fallback: string): Promise<Error> {
