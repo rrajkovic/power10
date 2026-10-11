@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Platform, Pressable, StyleSheet, Text } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSize, fontWeight, spacing, type Palette } from '@/constants/theme';
 import { useThemedStyles } from '@/lib/theme';
@@ -12,18 +12,33 @@ function openLog() {
 // iOS 26+: sits in the Liquid Glass bar above the tab bar (like the mini
 // player in Apple Music). The system draws two copies: a wide one, and a
 // compact one next to the tab bar when it shrinks on scroll.
+//
+// Link.AppleZoom makes the logging sheet grow out of this bar and shrink back
+// into it when closed, the way "now playing" does in Apple Music.
 export function LogWorkoutAccessory() {
   const styles = useThemedStyles(makeStyles);
   const placement = NativeTabs.BottomAccessory.usePlacement();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Log a workout"
-      onPress={openLog}
-      style={({ pressed }) => [styles.accessory, pressed && styles.pressed]}
-    >
-      <Text style={styles.accessoryText}>{placement === 'inline' ? '＋ Log' : '＋ Log a workout'}</Text>
-    </Pressable>
+    // The outer view fills the bar and centers the button. (The zoom wrapper
+    // sits between them and takes no space of its own, so the button can't
+    // be the one that stretches.)
+    <View style={styles.accessory}>
+      <Link href="/log" asChild>
+        <Link.AppleZoom>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Log a workout"
+            // The label is small; make the whole bar easy to hit.
+            hitSlop={{ top: 14, bottom: 14, left: 100, right: 100 }}
+            style={({ pressed }) => [styles.accessoryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.accessoryText}>
+              {placement === 'inline' ? '＋ Log' : '＋ Log a workout'}
+            </Text>
+          </Pressable>
+        </Link.AppleZoom>
+      </Link>
+    </View>
   );
 }
 
@@ -49,10 +64,18 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     accessory: {
       flex: 1,
+      alignSelf: 'stretch',
       alignItems: 'center',
       justifyContent: 'center',
     },
+    accessoryButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+    },
     accessoryText: {
+      textAlign: 'center',
       fontSize: fontSize.md,
       fontWeight: fontWeight.semibold,
       color: colors.text,

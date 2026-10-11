@@ -239,7 +239,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Home, top to bottom: account (left) and team switcher (right); goal cards (**Your week**, **Team**, swipeable); leaderboard; a "Log a session" bar above the tab bar. **Decided**
 - **Feed**: every session on the team, with comments and reactions, filterable to **Everyone** (default), **My workouts** (your history), one person, or a chosen list of people. **Decided**
 - No search for now. **Decided**
-- **Log a workout** lives in the iOS 26 tab bar's bottom accessory (Liquid Glass, visible on every tab, like Apple Music's mini player). Tapping it slides up a native sheet with the logging form; try a zoom/morph transition from the bar, fall back to the standard sheet. Android and older iPhones get a floating "＋ Log a workout" button instead. To be built together with logging. **Decided**
+- **Log a workout** lives in the iOS 26 tab bar's bottom accessory (Liquid Glass, visible on every tab, like Apple Music's mini player). Tapping it slides up a native sheet with the logging form; the sheet grows out of the bar and shrinks back into it (Apple's zoom transition, iOS 18 and later); elsewhere it's the standard sheet. Android and older iPhones get a floating "＋ Log a workout" button instead. To be built together with logging. **Decided**
 
 ### Leaderboard
 
