@@ -69,3 +69,26 @@ export function rememberResettingPassword(resetting: boolean): void {
     // Best effort.
   }
 }
+
+const THEME_KEY = 'power10.theme';
+
+// Light, dark, or whatever the phone is set to.
+export type ThemePreference = 'system' | 'light' | 'dark';
+
+export function savedThemePreference(): ThemePreference {
+  try {
+    const value = storage()?.getItem(THEME_KEY);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function rememberThemePreference(preference: ThemePreference): void {
+  try {
+    if (preference === 'system') storage()?.removeItem(THEME_KEY);
+    else storage()?.setItem(THEME_KEY, preference);
+  } catch {
+    // Best effort: without it the app follows the phone.
+  }
+}

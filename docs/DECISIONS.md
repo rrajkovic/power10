@@ -295,6 +295,35 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Coaches and admins also see "5 / 13 on target · 8 still to go — See who ›" at the bottom of that card. Athletes don't. **Decided**
 - The on-target count ("5 / 13 athletes have hit the weekly target") is on the Team tab for everyone; the list of who's still to go (or missed it, for past weeks) is for coaches and admins only. **Decided**
 
+## Calendar
+
+The Calendar tab, first version:
+
+- **Month view:** weeks start on Monday. Today is outlined, the selected day is filled, and days with something on them show dots (red for a race, orange for a test, the team color for a workout, grey for anything else). Arrows change the month; tapping the month name goes back to today. **Decided**
+- Below the grid: what's on the selected day, then everything in that month in date order. Taper, race and test weeks from team settings appear in the month list too, with their target. **Decided**
+- **Events** are one of Workout, Test, Race or Other, with a name, a date, an optional time and optional details. A workout can also say which activity and intensity to log it as. **Decided**
+- The date is picked from a small month. The time is picked by tapping the hour and AM or PM; minutes are one tap for :00, :15, :30 and :45, or any minute typed into a small box. **Decided**
+- **Repeating:** when adding, an event can repeat every day, every week or every 2 weeks until a chosen day (at most 100 at a time). It's saved as one ordinary event per date, so each can be edited or removed on its own; deleting offers "only this one" or "this and later ones". Editing changes one event, not the series. **Decided**
+- Everyone on the team can see the calendar and open an event. Only coaches and admins can add, edit or delete. **Decided**
+- **Logging a scheduled workout:** on the day or afterwards, an event shows "Log this workout". It opens the logging form with the activity, intensity and day filled in, and the saved workout is linked to the event. Logging against an event is optional; a workout can always be logged the normal way. **Decided**
+- **Already logged it?** If you logged a workout on the event's day the normal way, the event offers to link it. A link to your own workout can be taken off again ("Unlink"). **Decided**
+- An event lists who has done it and how long they logged. Coaches and admins also see "3 of 13 athletes" (coaches who did it are listed but aren't counted). Deleting an event keeps the workouts logged for it. **Decided**
+- **Today on Home:** anything on the calendar today, and a test or race tomorrow, shows at the top of Home. This stands in for reminders until the app can send notifications. **Decided**
+- **Coming up** (Team tab): the next test or race with a countdown ("in 12 days"), and today's scheduled workouts. Hidden when there's neither. **Decided**
+- Not built yet: reminders as phone notifications (needs push notifications, which need the Apple developer setup), and changing a whole repeating series at once. **Open**
+
+## Profile
+
+The Profile tab, first version:
+
+- **Name:** what teammates see on the leaderboard and feed. **Decided**
+- **Email:** shown, not editable yet. Changing it and adding a school email need the email-verification functions, which aren't built. **Open**
+- **Appearance:** Same as phone (default), Light or Dark. Remembered on the device, not on the account, so a phone and a laptop can differ. On phones the system's own parts (tab bar, menus, keyboard) follow the choice too. **Decided**
+- **Your teams:** every team you're on with your role; tap one to switch. Leaving is under Members on the Team tab. **Decided**
+- **Password:** change it by typing the new one twice (at least 8 characters). **Decided**
+- **Sign out.** **Decided**
+- Not built yet: joining or creating another team while already on one, notification preferences (there are no notifications yet), a profile photo, and deleting your account. **Open**
+
 ## Members and invites
 
 Opened from the Team tab by anyone on the team.
@@ -324,7 +353,7 @@ First version, top to bottom:
 
 - **Missed target** (coaches and admins only): how many athletes missed the target in a given week and who they are, sorted by how far short (no sessions at the bottom), using that week's own target (taper weeks included). ‹ › to look at any week. For the current week it shows who is still behind, with a **Nudge** button (push notification). Coaches don't count. **Decided**
 - **Needs review** (coaches and admins only): sessions the AI flagged, approve or reject in one tap. **Decided**
-- **Coming up:** the next test or race with a countdown, and today's scheduled workout with who has done it. **Decided**
+- **Coming up:** the next test or race with a countdown, and today's scheduled workouts (who has done one is on the event itself). **Decided**
 - **Target hit rate:** % of athletes on target, week by week across the season. **Decided**
 - **Streaks:** weeks in a row on target, per athlete. **Decided**
 - **Members and invites:** the roster and invite codes; managing them is for admins. **Decided**

@@ -44,13 +44,13 @@ isOneToOne: false
                   ]
                 },"calendar_events": {
                   Row: {
-                    "activity_type_id": string | null,"created_at": string,"created_by": string | null,"description": string | null,"event_date": string,"id": string,"intensity_id": string | null,"kind": Database["public"]['Enums']["calendar_event_kind"],"start_time": string | null,"team_id": string,"title": string
+                    "activity_type_id": string | null,"created_at": string,"created_by": string | null,"description": string | null,"event_date": string,"id": string,"intensity_id": string | null,"kind": Database["public"]['Enums']["calendar_event_kind"],"series_id": string | null,"start_time": string | null,"team_id": string,"title": string
                   }
                   Insert: {
-                    "activity_type_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"event_date": string,"id"?: string,"intensity_id"?: string | null,"kind": Database["public"]['Enums']["calendar_event_kind"],"start_time"?: string | null,"team_id": string,"title": string
+                    "activity_type_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"event_date": string,"id"?: string,"intensity_id"?: string | null,"kind": Database["public"]['Enums']["calendar_event_kind"],"series_id"?: string | null,"start_time"?: string | null,"team_id": string,"title": string
                   }
                   Update: {
-                    "activity_type_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"event_date"?: string,"id"?: string,"intensity_id"?: string | null,"kind"?: Database["public"]['Enums']["calendar_event_kind"],"start_time"?: string | null,"team_id"?: string,"title"?: string
+                    "activity_type_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"event_date"?: string,"id"?: string,"intensity_id"?: string | null,"kind"?: Database["public"]['Enums']["calendar_event_kind"],"series_id"?: string | null,"start_time"?: string | null,"team_id"?: string,"title"?: string
                   }
                   Relationships: [
                     {

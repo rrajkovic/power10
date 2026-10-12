@@ -16,20 +16,21 @@ Power10 started as a web app for Penn Lightweight Rowing, where about 40 athlete
 - **Targets:** weekly, two-week or monthly goals per team, with an optional cap.
 - **Home:** your progress for the period, the team's total, and a leaderboard you can switch between credits, minutes and distance.
 - **Team view:** how many athletes are on target; coaches and admins also see who isn't yet.
-- **Logging:** activity, intensity, day, time, distance and notes, with a live credits preview.
+- **Logging:** activity, intensity, day, time, distance and notes, with a live credits preview. Coaches can log for one athlete, several, or the whole team.
 - **AI photo logging:** photograph an erg monitor, watch or fitness app and the form fills itself in. After saving, the workout is checked against its photo and mismatches are flagged for a coach.
 - **Flag review:** athletes confirm or correct a flagged workout; coaches approve, reject or fix it.
 - **Feed:** the team's workouts with photos, emoji reactions and comments; filter to yourself or chosen teammates; edit or delete your own.
 - **Team settings:** admins set the team's name and colors, activities and intensities, credit rules, targets, and how far back athletes can log or edit.
 - **Members and invites:** the roster, changing roles, removing people, leaving a team, and shareable invite codes.
+- **Profile:** your name, light/dark choice, switching between teams, changing your password.
+- **Calendar:** tests, races and scheduled workouts in a month view; athletes log a scheduled workout in one tap, and coaches see who has done it.
 - **Look and feel:** light and dark themes, and each team's own colors.
 
 **Planned**
 
-- Coaches logging for an athlete, a group or the whole team
-- Calendar of tests, races and scheduled workouts
-- Profile and settings
+- Push notifications
 - Sign in with Google and Apple
+- School-email requirement for teams
 
 ## Tech stack
 

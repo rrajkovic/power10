@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, TextButton } from '@/components/Button';
@@ -25,6 +25,7 @@ import {
   useTeamAthletes,
   type DistanceUnit,
 } from '@/lib/logging';
+import { useEvent } from '@/lib/calendar';
 import { MAX_PHOTOS, pickPhotos, readWorkoutPhotos, type WorkoutPhoto } from '@/lib/photos';
 import { addDays } from '@/lib/progress';
 import { useSession } from '@/lib/session';
@@ -86,6 +87,12 @@ export default function LogWorkout() {
   const [forOthers, setForOthers] = useState(false);
   const [athleteIds, setAthleteIds] = useState<string[]>([]);
 
+  // Opened from a scheduled workout on the calendar (/log?event=…): start
+  // with its activity, intensity and day, and link the workout to it.
+  const { event: eventId } = useLocalSearchParams<{ event?: string }>();
+  const scheduled = useEvent(eventId);
+  const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
+
   const [drafts, setDrafts] = useState<Draft[]>([EMPTY_DRAFT]);
   // Which workout the form is showing.
   const [current, setCurrent] = useState(0);
@@ -104,6 +111,20 @@ export default function LogWorkout() {
   const types = options.data?.types ?? [];
   const intensities = options.data?.intensities ?? [];
   const today = todayInTimeZone(currentTeam.timeZone);
+
+  // Once the scheduled workout has loaded, fill the form from it (one time).
+  if (scheduled.data && prefilledFrom !== scheduled.data.id) {
+    setPrefilledFrom(scheduled.data.id);
+    const before = daysBefore(scheduled.data.event_date, today);
+    setDrafts([
+      {
+        ...drafts[0],
+        typeId: scheduled.data.activity_type_id ?? drafts[0].typeId,
+        intensityId: scheduled.data.intensity_id ?? drafts[0].intensityId,
+        daysAgo: before >= 0 ? before : 0,
+      },
+    ]);
+  }
   // How many days back this person may log. Admins have no limit.
   const earliest = currentTeam.isAdmin ? null : earliestAllowed(currentTeam.logWindow, today);
   const maxDaysAgo = earliest === null ? null : daysBefore(earliest, today);
@@ -271,6 +292,9 @@ export default function LogWorkout() {
         distanceMeters: checked[index].distanceMeters,
         notes: d.notes.trim() || null,
         photos: forOthers ? [] : d.photoIndexes.map((i) => photos[i]).filter(Boolean),
+        // Only the first workout is "the scheduled one"; extra workouts found
+        // in the photos are logged on their own.
+        calendarEventId: index === 0 ? (scheduled.data?.id ?? null) : null,
       })),
       { onSuccess: () => router.back() },
     );
@@ -296,6 +320,9 @@ export default function LogWorkout() {
         <ErrorText>Couldn’t load your team’s activities. Check your connection and try again.</ErrorText>
       ) : (
         <View style={styles.form}>
+          {scheduled.data ? (
+            <Muted style={styles.hint}>Logging: {scheduled.data.title}</Muted>
+          ) : null}
           {canLogForOthers ? (
             <View style={styles.field}>
               <Label>Who</Label>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
+import { ComingUp } from '@/components/calendar/ComingUp';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { PeriodNavigator } from '@/components/home/Leaderboard';
 import { SegmentedBar } from '@/components/home/SegmentedBar';
@@ -41,6 +42,7 @@ export default function Team() {
         <Label>Team</Label>
         <Headline>{currentTeam.name}</Headline>
       </View>
+      <ComingUp team={currentTeam} accent={accent} />
       <OnTarget key={currentTeam.id} team={currentTeam} accent={accent} />
       <NeedsReview team={currentTeam} />
       <View style={styles.settingsLink}>
@@ -60,7 +62,7 @@ export default function Team() {
         </View>
       ) : null}
       <Muted style={styles.comingSoon}>
-        Coming next here: upcoming tests and races, the season’s hit rate, and streaks.
+        Coming next here: the season’s hit rate, and streaks.
       </Muted>
     </TabScrollView>
   );

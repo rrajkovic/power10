@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { TodayNotice } from '@/components/calendar/TodayNotice';
 import { GoalCards } from '@/components/home/GoalCards';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { Leaderboard } from '@/components/home/Leaderboard';
@@ -25,6 +26,7 @@ export default function Home() {
       header={<HomeHeader accent={accent} />}
     >
       <FlaggedNotice teamId={currentTeam.id} />
+      <TodayNotice team={currentTeam} accent={accent} />
       <GoalCards key={currentTeam.id} team={currentTeam} accent={accent} />
       <Headline style={styles.headline}>Who’s putting{'\n'}in the work?</Headline>
       {/* key: reset the leaderboard's period and metric when switching teams. */}

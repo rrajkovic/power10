@@ -86,6 +86,8 @@ export type NewSession = {
   distanceMeters: number | null;
   notes: string | null;
   photos: WorkoutPhoto[];
+  // The scheduled workout this was logged for, if any.
+  calendarEventId?: string | null;
 };
 
 // Saves one workout: a session per athlete, plus its photos. Returns the ids
@@ -106,6 +108,7 @@ async function saveSession(session: NewSession): Promise<string[]> {
         duration_seconds: session.durationSeconds,
         distance_meters: session.distanceMeters,
         notes: session.notes,
+        calendar_event_id: session.calendarEventId ?? null,
         group_log_id: groupLogId,
       })),
     )
@@ -155,6 +158,7 @@ export function useLogSessions() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: progressKey }),
         queryClient.invalidateQueries({ queryKey: ['feed'] }),
+        queryClient.invalidateQueries({ queryKey: ['calendar'] }),
       ]),
   });
 }
