@@ -30,6 +30,7 @@ import { addDays } from '@/lib/progress';
 import { useSession } from '@/lib/session';
 import { useTeams } from '@/lib/teams';
 import { useTheme, useThemedStyles } from '@/lib/theme';
+import { describeWindow, earliestAllowed } from '@/lib/windows';
 
 const DISTANCE_UNITS: { value: DistanceUnit; label: string }[] = [
   { value: 'km', label: 'km' },
@@ -103,6 +104,9 @@ export default function LogWorkout() {
   const types = options.data?.types ?? [];
   const intensities = options.data?.intensities ?? [];
   const today = todayInTimeZone(currentTeam.timeZone);
+  // How many days back this person may log. Admins have no limit.
+  const earliest = currentTeam.isAdmin ? null : earliestAllowed(currentTeam.logWindow, today);
+  const maxDaysAgo = earliest === null ? null : daysBefore(earliest, today);
 
   // Everything worked out from what's typed into one workout.
   function check(draft: Draft) {
@@ -195,7 +199,9 @@ export default function LogWorkout() {
             ...EMPTY_DRAFT,
             typeId: found.activity_type_id,
             intensityId: found.intensity_id,
-            // Ignore dates in the future or absurdly old (a monitor with a wrong clock).
+            // Ignore dates in the future or absurdly old (a monitor with a wrong
+            // clock). A day the team no longer lets you log is kept, so saving
+            // explains why instead of silently logging it as today.
             daysAgo: before >= 0 && before <= 60 ? before : 0,
             duration: durationInput(found.seconds),
             distance:
@@ -459,7 +465,12 @@ export default function LogWorkout() {
           <View style={styles.field}>
             <Label>When</Label>
             <View style={styles.dateRow}>
-              <DayButton label="‹" accessibilityLabel="Previous day" onPress={() => update({ daysAgo: draft.daysAgo + 1 })} />
+              <DayButton
+                label="‹"
+                accessibilityLabel="Previous day"
+                disabled={maxDaysAgo !== null && draft.daysAgo >= maxDaysAgo}
+                onPress={() => update({ daysAgo: draft.daysAgo + 1 })}
+              />
               <Text style={styles.date}>{dayLabel(date, today)}</Text>
               <DayButton
                 label="›"
@@ -468,6 +479,18 @@ export default function LogWorkout() {
                 onPress={() => update({ daysAgo: draft.daysAgo - 1 })}
               />
             </View>
+            {maxDaysAgo !== null ? (
+              draft.daysAgo > maxDaysAgo ? (
+                <ErrorText>
+                  That day is too far back to log ({describeWindow(currentTeam.logWindow)}). Pick a
+                  later day or ask a coach to add it.
+                </ErrorText>
+              ) : (
+                <Muted style={styles.hint}>
+                  Your team lets you log {describeWindow(currentTeam.logWindow)}.
+                </Muted>
+              )
+            ) : null}
           </View>
 
           <View style={styles.field}>

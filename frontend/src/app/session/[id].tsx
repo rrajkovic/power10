@@ -15,8 +15,10 @@ import {
   useComments,
   useDeleteComment,
   useDeleteSession,
+  useEditComment,
   useFeedSession,
   useUpdateSession,
+  type Comment,
   type FeedSession,
 } from '@/lib/feed';
 import { dayLabel, daysBefore, todayInTimeZone } from '@/lib/logging';
@@ -24,6 +26,7 @@ import { addDays } from '@/lib/progress';
 import { useSession } from '@/lib/session';
 import { useTeams, type MyTeam } from '@/lib/teams';
 import { useTheme, useThemedStyles } from '@/lib/theme';
+import { describeWindow, earliestAllowed, isInWindow } from '@/lib/windows';
 
 // Back to wherever this was opened from. Opened straight from a link there's
 // nothing to go back to, so go to the Feed.
@@ -70,7 +73,10 @@ function SessionDetail({ session, team }: { session: FeedSession; team: MyTeam }
   const today = todayInTimeZone(team.timeZone);
 
   const isMine = session.athlete_id === userId;
-  const canChange = isMine || team.isAdmin;
+  // Admins always can. Athletes can while the workout is inside the team's
+  // edit window.
+  const tooOld = !team.isAdmin && !isInWindow(team.editWindow, today, session.session_date);
+  const canChange = team.isAdmin || (isMine && !tooOld);
   const [editing, setEditing] = useState(false);
 
   return (
@@ -83,10 +89,16 @@ function SessionDetail({ session, team }: { session: FeedSession; team: MyTeam }
             session={session}
             accent={accent}
             today={today}
-            showVerification={canChange}
+            showVerification={isMine || team.isAdmin}
             detail
           />
           {canChange ? <ChangeButtons session={session} onEdit={() => setEditing(true)} /> : null}
+          {isMine && tooOld ? (
+            <Muted style={styles.small}>
+              This workout can’t be changed any more (your team allows changes{' '}
+              {describeWindow(team.editWindow)}). Ask a coach if something’s wrong.
+            </Muted>
+          ) : null}
           <Comments session={session} team={team} accent={accent} />
         </>
       )}
@@ -156,15 +168,33 @@ function EditForm({
   const [notes, setNotes] = useState(session.notes ?? '');
   const { durationSeconds, distanceMeters, valid } = readFix(fix);
   const date = addDays(today, -daysAgo);
+  // Athletes can't move a workout to a day they couldn't log.
+  const earliest = team.isAdmin ? null : earliestAllowed(team.logWindow, today);
+  const maxDaysAgo = earliest === null ? null : daysBefore(earliest, today);
+  const wasVerified =
+    !team.isAdmin &&
+    session.verification_status !== null &&
+    session.verification_status !== 'not_needed';
 
   return (
     <View style={styles.sections}>
+      {wasVerified ? (
+        <Muted style={styles.small}>
+          This workout has been checked. If you change the activity, time, distance or day, a coach
+          will be asked to look at it again.
+        </Muted>
+      ) : null}
       <FixFields teamId={team.id} accent={accent} fix={fix} onChange={setFix} />
 
       <View style={styles.field}>
         <Label>When</Label>
         <View style={styles.dateRow}>
-          <DayButton label="‹" accessibilityLabel="Previous day" onPress={() => setDaysAgo(daysAgo + 1)} />
+          <DayButton
+            label="‹"
+            accessibilityLabel="Previous day"
+            disabled={maxDaysAgo !== null && daysAgo >= maxDaysAgo}
+            onPress={() => setDaysAgo(daysAgo + 1)}
+          />
           <Text style={styles.date}>{dayLabel(date, today)}</Text>
           <DayButton
             label="›"
@@ -251,7 +281,6 @@ function Comments({ session, team, accent }: { session: FeedSession; team: MyTea
   const userId = auth?.user.id;
   const comments = useComments(session.id);
   const add = useAddComment();
-  const remove = useDeleteComment();
   const [body, setBody] = useState('');
 
   function send() {
@@ -264,27 +293,13 @@ function Comments({ session, team, accent }: { session: FeedSession; team: MyTea
       <Label>Comments</Label>
       {comments.data?.length === 0 ? <Muted style={styles.small}>No comments yet.</Muted> : null}
       {comments.data?.map((comment) => (
-        <View key={comment.id} style={styles.comment}>
-          <View style={styles.commentHeader}>
-            <Text style={[styles.commentAuthor, comment.author_id === session.athlete_id && { color: accent }]}>
-              {comment.author?.name || 'Unnamed'}
-            </Text>
-            <Muted style={styles.small}>{timeAgo(comment.created_at)}</Muted>
-            {/* Your own comments, or any comment if you're an admin. */}
-            {comment.author_id === userId || team.isAdmin ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Delete comment"
-                onPress={() => remove.mutate(comment.id)}
-                hitSlop={8}
-                style={styles.commentDelete}
-              >
-                <Muted style={styles.small}>Delete</Muted>
-              </Pressable>
-            ) : null}
-          </View>
-          <Text style={styles.commentBody}>{comment.body}</Text>
-        </View>
+        <CommentRow
+          key={comment.id}
+          comment={comment}
+          isAuthor={comment.author_id === userId}
+          canDelete={comment.author_id === userId || team.isAdmin}
+          highlight={comment.author_id === session.athlete_id ? accent : null}
+        />
       ))}
 
       <TextField
@@ -296,6 +311,94 @@ function Comments({ session, team, accent }: { session: FeedSession; team: MyTea
       />
       {add.isError ? <ErrorText>Couldn’t post: {add.error.message}.</ErrorText> : null}
       <Button title="Post comment" onPress={send} loading={add.isPending} disabled={!body.trim()} />
+    </View>
+  );
+}
+
+// One comment. Its author can edit it; its author or an admin can delete it.
+function CommentRow({
+  comment,
+  isAuthor,
+  canDelete,
+  highlight,
+}: {
+  comment: Comment;
+  isAuthor: boolean;
+  canDelete: boolean;
+  // The team color, for comments by the workout's own athlete.
+  highlight: string | null;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const edit = useEditComment();
+  const remove = useDeleteComment();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(comment.body);
+
+  return (
+    <View style={styles.comment}>
+      <View style={styles.commentHeader}>
+        <Text style={[styles.commentAuthor, highlight ? { color: highlight } : null]}>
+          {comment.author?.name || 'Unnamed'}
+        </Text>
+        <Muted style={styles.small}>
+          {timeAgo(comment.created_at)}
+          {comment.edited_at ? ' · edited' : ''}
+        </Muted>
+        {editing ? null : (
+          <View style={styles.commentActions}>
+            {isAuthor ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit comment"
+                onPress={() => {
+                  setText(comment.body);
+                  setEditing(true);
+                }}
+                hitSlop={8}
+              >
+                <Muted style={styles.small}>Edit</Muted>
+              </Pressable>
+            ) : null}
+            {canDelete ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete comment"
+                onPress={() => remove.mutate(comment.id)}
+                hitSlop={8}
+              >
+                <Muted style={styles.small}>Delete</Muted>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+      </View>
+
+      {editing ? (
+        <View style={styles.field}>
+          <TextField value={text} onChangeText={setText} multiline maxLength={2000} autoFocus />
+          {edit.isError ? <ErrorText>Couldn’t save: {edit.error.message}.</ErrorText> : null}
+          <View style={styles.buttons}>
+            <View style={styles.button}>
+              <Button title="Cancel" variant="secondary" disabled={edit.isPending} onPress={() => setEditing(false)} />
+            </View>
+            <View style={styles.button}>
+              <Button
+                title="Save"
+                loading={edit.isPending}
+                disabled={!text.trim() || text.trim() === comment.body}
+                onPress={() =>
+                  edit.mutate(
+                    { commentId: comment.id, body: text },
+                    { onSuccess: () => setEditing(false) },
+                  )
+                }
+              />
+            </View>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.commentBody}>{comment.body}</Text>
+      )}
     </View>
   );
 }
@@ -377,7 +480,9 @@ const makeStyles = (colors: Palette) =>
       fontWeight: fontWeight.bold,
       color: colors.text,
     },
-    commentDelete: {
+    commentActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
       marginLeft: 'auto',
     },
     commentBody: {

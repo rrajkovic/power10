@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { progressKey } from './progress';
 import { supabase } from './supabase';
 
@@ -13,7 +14,7 @@ const PAGE_SIZE = 20;
 // Everything a feed card or the session screen shows, in one request.
 const SESSION_FIELDS =
   'id, team_id, athlete_id, session_date, duration_seconds, distance_meters, credits, notes, ' +
-  'custom_label, verification_status, verification_note, logged_by, created_at, ' +
+  'custom_label, logged_by, created_at, ' +
   'activity_type_id, intensity_id, ' +
   'activity:activity_types(name), intensity:intensities(name), ' +
   'athlete:profiles!sessions_athlete_id_fkey(name), ' +
@@ -29,7 +30,9 @@ export type FeedSession = {
   credits: number;
   notes: string | null;
   custom_label: string | null;
-  verification_status: 'not_needed' | 'pending' | 'passed' | 'flagged' | 'rejected';
+  // The photo check. Only filled in for your own workouts, or for all of them
+  // if you're an admin; null means "not yours to know".
+  verification_status: 'not_needed' | 'pending' | 'passed' | 'flagged' | 'rejected' | null;
   verification_note: string | null;
   logged_by: string | null;
   created_at: string;
@@ -56,6 +59,24 @@ type FeedOptions = {
   filter: FeedFilter;
 };
 
+// Verification details can't be read from the sessions table. The database
+// hands them out separately, and only for workouts you're allowed to know
+// about (your own, or everyone's if you're an admin). It also hides rejected
+// workouts from everyone but their athlete and admins.
+async function withVerification(sessions: FeedSession[]): Promise<FeedSession[]> {
+  if (sessions.length === 0) return sessions;
+  const { data, error } = await supabase.rpc('session_verifications', {
+    session_ids: sessions.map((session) => session.id),
+  });
+  if (error) throw error;
+  const byId = new Map(data.map((row) => [row.session_id, row]));
+  return sessions.map((session) => ({
+    ...session,
+    verification_status: byId.get(session.id)?.status ?? null,
+    verification_note: byId.get(session.id)?.note ?? null,
+  }));
+}
+
 // Loads the feed a page at a time ("Load more" asks for the next one).
 export function useFeed({ teamId, userId, isAdmin, filter }: FeedOptions) {
   return useInfiniteQuery({
@@ -73,12 +94,10 @@ export function useFeed({ teamId, userId, isAdmin, filter }: FeedOptions) {
 
       if (filter.kind === 'mine') query = query.eq('athlete_id', userId!);
       if (filter.kind === 'people') query = query.in('athlete_id', filter.ids);
-      // A rejected workout is only shown to its athlete and to admins.
-      if (!isAdmin) query = query.or(`verification_status.neq.rejected,athlete_id.eq.${userId}`);
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as unknown as FeedSession[];
+      return withVerification(data as unknown as FeedSession[]);
     },
     // A full page means there may be more.
     getNextPageParam: (lastPage, pages) =>
@@ -97,7 +116,8 @@ export function useFeedSession(sessionId: string | undefined) {
         .eq('id', sessionId!)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as FeedSession | null;
+      if (!data) return null;
+      return (await withVerification([data as unknown as FeedSession]))[0];
     },
   });
 }
@@ -118,6 +138,44 @@ export function useTeamMembers(teamId: string | undefined, enabled: boolean) {
         .sort((a, b) => a.name.localeCompare(b.name));
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Live updates
+// ---------------------------------------------------------------------------
+
+// While this is mounted, the app is told when anyone on the team logs or
+// changes a workout, comments or reacts, and reloads what's on screen. (The
+// message only says "something changed"; the data is then fetched the normal
+// way, so the same access rules apply.)
+//
+// One limit: when someone else DELETES something, others only see it go after
+// their next refresh.
+export function useLiveUpdates(teamId: string | undefined) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!teamId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Several changes in a row (a group log, a burst of reactions) cause one reload.
+    const reload = (totalsToo: boolean) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: feedKey });
+        if (totalsToo) queryClient.invalidateQueries({ queryKey: progressKey });
+      }, 400);
+    };
+    const filter = `team_id=eq.${teamId}`;
+    const channel = supabase
+      .channel(`team-${teamId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter }, () => reload(true))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => reload(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions', filter }, () => reload(false))
+      .subscribe();
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [teamId, queryClient]);
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +230,8 @@ export type Comment = {
   id: string;
   body: string;
   created_at: string;
+  // Set when the author has changed it.
+  edited_at: string | null;
   author_id: string;
   author: { name: string } | null;
 };
@@ -183,7 +243,9 @@ export function useComments(sessionId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('comments')
-        .select('id, body, created_at, author_id, author:profiles!comments_author_id_fkey(name)')
+        .select(
+          'id, body, created_at, edited_at, author_id, author:profiles!comments_author_id_fkey(name)',
+        )
         .eq('session_id', sessionId!)
         .order('created_at');
       if (error) throw error;
@@ -201,6 +263,21 @@ export function useAddComment() {
         session_id: comment.session.id,
         body: comment.body.trim(),
       });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: feedKey }),
+  });
+}
+
+// Only the author can change a comment; the database marks it as edited.
+export function useEditComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (edit: { commentId: string; body: string }) => {
+      const { error } = await supabase
+        .from('comments')
+        .update({ body: edit.body.trim() })
+        .eq('id', edit.commentId);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: feedKey }),
@@ -268,8 +345,14 @@ export function useDeleteSession() {
   const reload = useReloadAll();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
-      if (error) throw error;
+      // Done by a server function so the photo files are removed too.
+      const { error } = await supabase.functions.invoke('delete-session', {
+        body: { session_id: sessionId },
+      });
+      if (error) {
+        const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+        throw new Error(typeof body?.error === 'string' ? body.error : 'Couldn’t delete the workout');
+      }
     },
     onSuccess: reload,
   });
@@ -293,6 +376,7 @@ export function timeAgo(iso: string): string {
 
 // What to say about the photo check. Only the athlete and admins see this.
 export function verificationLabel(status: FeedSession['verification_status']): string | null {
+  if (status === null) return null;
   if (status === 'passed') return 'Verified ✓';
   if (status === 'pending') return 'Checking photo…';
   if (status === 'flagged') return 'Flagged for review';

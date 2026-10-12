@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(21);
+select plan(26);
 
 create function pg_temp.new_user(user_id uuid, user_email text, user_name text)
 returns void language sql as $$
@@ -100,6 +100,27 @@ select throws_ok(
   'A teammate can''t answer for someone else'
 );
 
+-- Verification details can't be read from the table, only through a function
+-- that answers for your own sessions (or everyone's, for admins).
+select throws_ok(
+  $$ select verification_status from public.sessions where id = (select s1 from ids) $$,
+  '42501', null, 'A teammate can''t read verification status from the table'
+);
+select is(
+  (select count(*)::int from public.session_verifications(array[(select s1 from ids), (select s2 from ids)])),
+  0, 'And the function tells a teammate nothing about someone else''s sessions'
+);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+select is(
+  (select status::text from public.session_verifications(array[(select s1 from ids)])),
+  'flagged', 'The athlete can see their own'
+);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select is(
+  (select count(*)::int from public.session_verifications(array[(select s1 from ids), (select s2 from ids)])),
+  2, 'An admin can see anyone''s on their team'
+);
+
 -- ---------------------------------------------------------------------------
 -- Confirm: stays flagged, marked as confirmed by the athlete.
 -- ---------------------------------------------------------------------------
@@ -123,7 +144,7 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
--- Correct: new values, new credits, checked again.
+-- Correct: new values, new credits, and it goes to the coaches as corrected.
 -- ---------------------------------------------------------------------------
 
 select lives_ok(
@@ -135,16 +156,16 @@ reset role;
 select is(
   (select verification_status::text || ' / ' || athlete_response::text || ' / ' || duration_seconds || ' / ' || credits
    from public.sessions where id = (select s2 from ids)),
-  'pending / corrected / 3540 / 5.9',
-  'The fix is saved, credits are recalculated, and it''s pending again'
+  'flagged / corrected / 3540 / 5.9',
+  'The fix is saved, credits are recalculated, and it stays with the coaches as corrected'
 );
 select is(
   (select count(*)::int from public.verification_checks
    where session_id = (select s2 from ids) and status = 'queued'),
-  1, 'A new photo check is queued'
+  0, 'No new photo check: a coach decides'
 );
 
--- Without photos there's nothing to re-check: it stays flagged for a coach.
+-- The same without photos.
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
 select public.correct_flagged_session((select s3 from ids), (select erg from ids), null, 59 * 60, null);
 reset role;
@@ -162,7 +183,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
 select is(
   (select string_agg(coalesce(athlete_response::text, 'no answer'), ', ' order by athlete_response::text)
    from public.flagged_sessions((select id from team))),
-  'confirmed, corrected', 'A coach sees flagged workouts with the athlete''s answer'
+  'confirmed, corrected, corrected', 'A coach sees flagged workouts with the athlete''s answer'
 );
 select is(
   (select athlete_name from public.flagged_sessions((select id from team)) limit 1),
@@ -205,7 +226,15 @@ select is(
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
 select is(
   (select count(*)::int from public.flagged_sessions((select id from team))),
-  0, 'Nothing is left to review'
+  1, 'It leaves the list (one corrected workout is still waiting)'
+);
+
+-- A rejected workout disappears for teammates, but not for its athlete.
+select public.review_session((select s2 from ids), false);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a2');
+select is(
+  (select count(*)::int from public.sessions where id = (select s2 from ids)),
+  0, 'A teammate can''t see a rejected workout'
 );
 
 select * from finish();

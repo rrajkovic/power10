@@ -223,6 +223,31 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"photo_reads": {
+                  Row: {
+                    "created_at": string,"id": string,"photo_count": number,"team_id": string,"user_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"photo_count": number,"team_id": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"photo_count"?: number,"team_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "photo_reads_team_id_fkey"
+      columns: ["team_id"]
+isOneToOne: false
+      referencedRelation: "teams"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "photo_reads_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "avatar_path": string | null,"created_at": string,"id": string,"name": string
@@ -431,13 +456,13 @@ isOneToOne: false
                   ]
                 },"teams": {
                   Row: {
-                    "accent_primary": string,"accent_secondary": string | null,"allowed_domains": (string)[],"created_at": string,"id": string,"logo_path": string | null,"name": string,"require_email_domain": boolean,"target_period": Database["public"]['Enums']["target_period"],"time_zone": string
+                    "accent_primary": string,"accent_secondary": string | null,"allowed_domains": (string)[],"created_at": string,"edit_window": Database["public"]['Enums']["time_window"],"edit_window_days": number | null,"id": string,"log_window": Database["public"]['Enums']["time_window"],"log_window_days": number | null,"logo_path": string | null,"name": string,"require_email_domain": boolean,"target_period": Database["public"]['Enums']["target_period"],"time_zone": string
                   }
                   Insert: {
-                    "accent_primary"?: string,"accent_secondary"?: string | null,"allowed_domains"?: (string)[],"created_at"?: string,"id"?: string,"logo_path"?: string | null,"name": string,"require_email_domain"?: boolean,"target_period"?: Database["public"]['Enums']["target_period"],"time_zone"?: string
+                    "accent_primary"?: string,"accent_secondary"?: string | null,"allowed_domains"?: (string)[],"created_at"?: string,"edit_window"?: Database["public"]['Enums']["time_window"],"edit_window_days"?: number | null,"id"?: string,"log_window"?: Database["public"]['Enums']["time_window"],"log_window_days"?: number | null,"logo_path"?: string | null,"name": string,"require_email_domain"?: boolean,"target_period"?: Database["public"]['Enums']["target_period"],"time_zone"?: string
                   }
                   Update: {
-                    "accent_primary"?: string,"accent_secondary"?: string | null,"allowed_domains"?: (string)[],"created_at"?: string,"id"?: string,"logo_path"?: string | null,"name"?: string,"require_email_domain"?: boolean,"target_period"?: Database["public"]['Enums']["target_period"],"time_zone"?: string
+                    "accent_primary"?: string,"accent_secondary"?: string | null,"allowed_domains"?: (string)[],"created_at"?: string,"edit_window"?: Database["public"]['Enums']["time_window"],"edit_window_days"?: number | null,"id"?: string,"log_window"?: Database["public"]['Enums']["time_window"],"log_window_days"?: number | null,"logo_path"?: string | null,"name"?: string,"require_email_domain"?: boolean,"target_period"?: Database["public"]['Enums']["target_period"],"time_zone"?: string
                   }
                   Relationships: [
                     
@@ -512,6 +537,9 @@ isOneToOne: false
                            },
 "create_team":
 { Args: { "creator_role"?: Database["public"]['Enums']["member_role"],"team_name": string,"team_time_zone"?: string }; Returns: string
+                           },
+"date_in_window":
+{ Args: { "d": string,"days": number,"today": string,"w": Database["public"]['Enums']["time_window"] }; Returns: boolean
                            },
 "delete_team":
 { Args: { "team": string }; Returns: undefined
@@ -699,6 +727,11 @@ isOneToOne: false
 "session_photo_paths":
 { Args: { "session": string }; Returns: (string)[]
                            },
+"session_verifications":
+{ Args: { "session_ids": (string)[] }; Returns: {
+              "athlete_response": Database["public"]['Enums']["athlete_response"],"note": string,"session_id": string,"status": Database["public"]['Enums']["verification_status"]
+            }[]
+                           },
 "set_member_admin":
 { Args: { "make_admin": boolean,"member": string,"team": string }; Returns: undefined
                            },
@@ -736,7 +769,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "athlete_response": "confirmed"|"corrected","calendar_event_kind": "test"|"race"|"workout"|"other","check_status": "queued"|"running"|"done"|"failed","check_verdict": "passed"|"flagged","credit_rule_kind": "per_session"|"per_time"|"per_distance","email_kind": "primary"|"secondary","member_role": "coach"|"athlete","notification_kind": "comment"|"reaction","period_kind": "week"|"two_weeks"|"month"|"season","photo_source": "camera"|"gallery","push_platform": "ios"|"android"|"web","target_period": "week"|"two_weeks"|"month","verification_status": "not_needed"|"pending"|"passed"|"flagged"|"rejected"
+            "athlete_response": "confirmed"|"corrected","calendar_event_kind": "test"|"race"|"workout"|"other","check_status": "queued"|"running"|"done"|"failed","check_verdict": "passed"|"flagged","credit_rule_kind": "per_session"|"per_time"|"per_distance","email_kind": "primary"|"secondary","member_role": "coach"|"athlete","notification_kind": "comment"|"reaction","period_kind": "week"|"two_weeks"|"month"|"season","photo_source": "camera"|"gallery","push_platform": "ios"|"android"|"web","target_period": "week"|"two_weeks"|"month","time_window": "forever"|"days"|"week"|"month","verification_status": "not_needed"|"pending"|"passed"|"flagged"|"rejected"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -856,7 +889,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "athlete_response": ["confirmed", "corrected"],"calendar_event_kind": ["test", "race", "workout", "other"],"check_status": ["queued", "running", "done", "failed"],"check_verdict": ["passed", "flagged"],"credit_rule_kind": ["per_session", "per_time", "per_distance"],"email_kind": ["primary", "secondary"],"member_role": ["coach", "athlete"],"notification_kind": ["comment", "reaction"],"period_kind": ["week", "two_weeks", "month", "season"],"photo_source": ["camera", "gallery"],"push_platform": ["ios", "android", "web"],"target_period": ["week", "two_weeks", "month"],"verification_status": ["not_needed", "pending", "passed", "flagged", "rejected"]
+            "athlete_response": ["confirmed", "corrected"],"calendar_event_kind": ["test", "race", "workout", "other"],"check_status": ["queued", "running", "done", "failed"],"check_verdict": ["passed", "flagged"],"credit_rule_kind": ["per_session", "per_time", "per_distance"],"email_kind": ["primary", "secondary"],"member_role": ["coach", "athlete"],"notification_kind": ["comment", "reaction"],"period_kind": ["week", "two_weeks", "month", "season"],"photo_source": ["camera", "gallery"],"push_platform": ["ios", "android", "web"],"target_period": ["week", "two_weeks", "month"],"time_window": ["forever", "days", "week", "month"],"verification_status": ["not_needed", "pending", "passed", "flagged", "rejected"]
           }
         }
 } as const

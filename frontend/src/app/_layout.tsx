@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router, SplashScreen, Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { hasSignedInBefore } from '@/lib/deviceMemory';
+// Imported here so the opening link is read as soon as the app starts.
+import '@/lib/openingLink';
 import { SessionProvider, useSession } from '@/lib/session';
 import { TeamsProvider, useTeams } from '@/lib/teams';
 

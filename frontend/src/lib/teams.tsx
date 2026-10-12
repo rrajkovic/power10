@@ -10,6 +10,7 @@ import type { Database } from './database.types';
 import { currentTeamId, rememberCurrentTeam } from './deviceMemory';
 import { useSession } from './session';
 import { supabase } from './supabase';
+import type { WindowSetting } from './windows';
 
 export type MemberRole = Database['public']['Enums']['member_role'];
 export type TargetPeriod = Database['public']['Enums']['target_period'];
@@ -24,6 +25,9 @@ export type MyTeam = {
   timeZone: string;
   // How often targets reset: week, two_weeks or month.
   targetPeriod: TargetPeriod;
+  // How far back athletes may log a workout, and change or delete one.
+  logWindow: WindowSetting;
+  editWindow: WindowSetting;
 };
 
 type TeamsState = {
@@ -43,7 +47,7 @@ const TeamsContext = createContext<TeamsState | null>(null);
 async function loadTeams(userId: string): Promise<MyTeam[]> {
   const { data, error } = await supabase
     .from('memberships')
-    .select('role, is_admin, teams(id, name, accent_primary, accent_secondary, time_zone, target_period)')
+    .select('role, is_admin, teams(id, name, accent_primary, accent_secondary, time_zone, target_period, log_window, log_window_days, edit_window, edit_window_days)')
     .eq('user_id', userId)
     .order('joined_at');
 
@@ -66,6 +70,14 @@ async function loadTeams(userId: string): Promise<MyTeam[]> {
             accentSecondary: membership.teams.accent_secondary,
             timeZone: membership.teams.time_zone,
             targetPeriod: membership.teams.target_period,
+            logWindow: {
+              window: membership.teams.log_window,
+              days: membership.teams.log_window_days,
+            },
+            editWindow: {
+              window: membership.teams.edit_window,
+              days: membership.teams.edit_window_days,
+            },
           },
         ]
       : [],

@@ -7,12 +7,65 @@
 // confident it read the screen correctly, even if the numbers seem to match.
 // Flagged sessions keep counting until an admin rejects them.
 //
+// It also looks for reused photos, in two ways:
+//   1. The exact same file is on another workout of the team (compared by
+//      fingerprint, a hash of the file).
+//   2. Another workout's photos read as exactly the same time and distance.
+//      That can be a coincidence, so the AI is then asked to compare the two
+//      sets of photos, and it's only flagged if they show the same picture.
+//
 // The caller only chooses WHICH session to check, never the result.
 
 import { askGemini, MIN_CONFIDENCE, READING_RULES, type Photo } from '../_shared/gemini.ts';
 import { adminClient, callerClient, corsHeaders, json } from '../_shared/http.ts';
 
 const MAX_PHOTOS = 6;
+
+// A fingerprint of a file: the same bytes always give the same text.
+async function sha256(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+type AdminClient = ReturnType<typeof adminClient>;
+
+async function loadPhotos(admin: AdminClient, sessionId: string) {
+  const rows = await admin
+    .from('session_photos')
+    .select('id, storage_path')
+    .eq('session_id', sessionId)
+    .order('created_at')
+    .limit(MAX_PHOTOS);
+  const loaded: { id: string; photo: Photo; hash: string }[] = [];
+  for (const row of rows.data ?? []) {
+    const file = await admin.storage.from('session-photos').download(row.storage_path);
+    if (file.error) continue;
+    const bytes = new Uint8Array(await file.data.arrayBuffer());
+    loaded.push({
+      id: row.id,
+      photo: { mimeType: file.data.type || 'image/jpeg', base64: toBase64(bytes) },
+      hash: await sha256(bytes),
+    });
+  }
+  return loaded;
+}
+
+// "Sam Okafor's workout on 2026-10-09", for the note a coach reads.
+async function describeSession(admin: AdminClient, sessionId: string, sameAthleteId: string) {
+  const other = await admin
+    .from('sessions')
+    .select('athlete_id, session_date, profiles!sessions_athlete_id_fkey(name)')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (!other.data) return 'another workout';
+  const row = other.data as unknown as {
+    athlete_id: string;
+    session_date: string;
+    profiles: { name: string } | null;
+  };
+  const whose = row.athlete_id === sameAthleteId ? 'their own' : `${row.profiles?.name || 'a teammate'}’s`;
+  return `${whose} workout on ${row.session_date}`;
+}
 
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -74,35 +127,27 @@ Deno.serve(async (req) => {
     return json({ status: 'failed', error: note }, status);
   };
 
-  const [session, photoRows] = await Promise.all([
-    admin
-      .from('sessions')
-      .select(
-        'session_date, duration_seconds, distance_meters, custom_label, activity_types(name), intensities(name)',
-      )
-      .eq('id', session_id)
-      .single(),
-    admin
-      .from('session_photos')
-      .select('storage_path')
-      .eq('session_id', session_id)
-      .order('created_at')
-      .limit(MAX_PHOTOS),
-  ]);
-  if (session.error || !photoRows.data?.length) return fail('The photos could not be found.');
+  const session = await admin
+    .from('sessions')
+    .select(
+      'team_id, athlete_id, session_date, duration_seconds, distance_meters, custom_label, activity_types(name), intensities(name)',
+    )
+    .eq('id', session_id)
+    .single();
+  if (session.error) return fail('The session could not be found.');
 
-  const photos: Photo[] = [];
-  for (const row of photoRows.data) {
-    const file = await admin.storage.from('session-photos').download(row.storage_path);
-    if (file.error) continue;
-    photos.push({
-      mimeType: file.data.type || 'image/jpeg',
-      base64: toBase64(new Uint8Array(await file.data.arrayBuffer())),
-    });
+  const loaded = await loadPhotos(admin, session_id);
+  if (loaded.length === 0) return fail('The photos could not be opened.');
+  const photos = loaded.map((item) => item.photo);
+
+  // Remember each photo's fingerprint, so later checks can spot the same file.
+  for (const item of loaded) {
+    await admin.from('session_photos').update({ image_hash: item.hash }).eq('id', item.id);
   }
-  if (photos.length === 0) return fail('The photos could not be opened.');
 
   const s = session.data as unknown as {
+    team_id: string;
+    athlete_id: string;
     session_date: string;
     duration_seconds: number;
     distance_meters: number | null;
@@ -156,19 +201,75 @@ Check ${photos.length === 1 ? 'the photo' : `the ${photos.length} photos`}.`,
   const matches = result.json.matches === true;
   const unsure = confidence < MIN_CONFIDENCE;
 
-  const verdict = matches && !unsure ? 'passed' : 'flagged';
   const aiNote = typeof result.json.note === 'string' ? result.json.note.slice(0, 300) : '';
-  // Numbers matched but the photo was hard to read: say that, so the coach
-  // knows why it needs a look.
-  const note =
-    matches && unsure
+
+  // --- Reused photo? ---------------------------------------------------------
+  let reused: string | null = null;
+
+  // 1. The exact same file on another workout of this team.
+  const sameFile = await admin
+    .from('session_photos')
+    .select('session_id')
+    .eq('team_id', s.team_id)
+    .in('image_hash', loaded.map((item) => item.hash))
+    .neq('session_id', session_id)
+    .limit(1)
+    .maybeSingle();
+  if (sameFile.data) {
+    reused = `Possibly a reused photo: the same photo file is on ${await describeSession(admin, sameFile.data.session_id, s.athlete_id)}.`;
+  }
+
+  // 2. Another workout whose photos read as the same time AND distance. Only
+  //    then are the pictures themselves compared (an extra AI call).
+  const readSeconds = Number(result.json.seconds);
+  const readMeters = Number(result.json.distance_meters);
+  if (!reused && Number.isInteger(readSeconds) && readSeconds > 0 && Number.isInteger(readMeters) && readMeters > 0) {
+    const sameNumbers = await admin
+      .from('verification_checks')
+      .select('session_id')
+      .eq('team_id', s.team_id)
+      .eq('status', 'done')
+      .neq('session_id', session_id)
+      .eq('result->>seconds', String(readSeconds))
+      .eq('result->>distance_meters', String(readMeters))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sameNumbers.data) {
+      const others = await loadPhotos(admin, sameNumbers.data.session_id);
+      if (others.length) {
+        const compare = await askGemini({
+          instructions: `You compare two sets of workout photos to catch a photo being reused for a second workout.
+Set A has ${photos.length} photo(s), then set B has ${others.length}. Answer whether any photo in A shows the SAME photograph or the same screen at the same moment as a photo in B: the same monitor with the same numbers and the same surroundings, glare, angle or crop.
+Two different workouts can have identical numbers (the same piece done twice, or two athletes side by side). Different surroundings, a different date on the screen, or a clearly different device means NOT the same. Only say "same" when you are confident.`,
+          prompt: `Set A is the first ${photos.length} photo(s); set B is the rest.`,
+          photos: [...photos, ...others.map((item) => item.photo)],
+          schema: {
+            type: 'OBJECT',
+            properties: { same: { type: 'BOOLEAN' }, note: { type: 'STRING' } },
+            required: ['same'],
+          },
+        });
+        if (compare.ok && compare.json.same === true) {
+          reused = `Possibly a reused photo: it looks the same as the photo on ${await describeSession(admin, sameNumbers.data.session_id, s.athlete_id)}.`;
+        }
+      }
+    }
+  }
+
+  const verdict = matches && !unsure && !reused ? 'passed' : 'flagged';
+  // Say why it needs a look. A reused photo comes first; then a photo that
+  // was hard to read even though the numbers matched.
+  const note = reused
+    ? `${reused}${matches ? '' : ` ${aiNote}`}`.trim()
+    : matches && unsure
       ? `The photo was hard to read (confidence ${confidence}/10). ${aiNote}`.trim()
       : aiNote || null;
   const applied = await admin.rpc('apply_verification', {
     check_id: checkId,
     check_verdict: verdict,
     check_note: note,
-    check_result: { ...result.json, confidence },
+    check_result: { ...result.json, confidence, reused: reused !== null },
     check_engine: result.model,
   });
   if (applied.error) return fail('The result could not be saved.');

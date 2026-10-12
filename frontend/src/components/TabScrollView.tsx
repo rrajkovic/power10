@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { BlurView } from 'expo-blur';
-import { useState, type PropsWithChildren, type ReactNode } from 'react';
+import { BlurTargetView, BlurView } from 'expo-blur';
+import { useRef, useState, type PropsWithChildren, type ReactNode } from 'react';
 import { Platform, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -14,6 +14,9 @@ import { spacing, type Palette } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/lib/theme';
 
 const isIOS = Platform.OS === 'ios';
+// Android can blur what's behind a view from Android 12 (API 31) on. Older
+// Android gets a nearly solid bar instead.
+const androidCanBlur = Platform.OS === 'android' && Number(Platform.Version) >= 31;
 // On the web the tab bar sits at the top of the page instead of the bottom.
 const WEB_TAB_BAR_HEIGHT = Platform.OS === 'web' ? 64 : 0;
 // Room to scroll the last rows above the floating tab bar.
@@ -39,6 +42,8 @@ export function TabScrollView({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  // Android blurs a specific view, not "whatever is behind": this is it.
+  const blurTarget = useRef<View>(null);
 
   const headerHeight = insets.top + WEB_TAB_BAR_HEIGHT + (header ? HEADER_BAR_HEIGHT : 0);
 
@@ -92,6 +97,9 @@ export function TabScrollView({
 
   return (
     <View style={styles.screen}>
+      {/* Everything the top bar sits over. On iPhone and the web this is an
+          ordinary view. */}
+      <BlurTargetView ref={blurTarget} style={styles.fill}>
       {background ? <View style={StyleSheet.absoluteFill}>{background}</View> : null}
 
       <Animated.ScrollView
@@ -123,11 +131,14 @@ export function TabScrollView({
       >
         {children}
       </Animated.ScrollView>
+      </BlurTargetView>
 
       {header ? (
         <Animated.View style={[styles.header, { height: headerHeight }, headerStyle]}>
           <BlurView
             intensity={80}
+            blurTarget={blurTarget}
+            blurMethod="dimezisBlurViewSdk31Plus"
             tint={
               isIOS
                 ? scheme === 'dark'
@@ -139,8 +150,8 @@ export function TabScrollView({
             }
             style={StyleSheet.absoluteFill}
           />
-          {/* A hairline under the bar. Android doesn't blur here, so it also
-              gets a nearly solid background. */}
+          {/* A hairline under the bar. Android before 12 can't blur, so
+              there it also gets a nearly solid background. */}
           <View style={[StyleSheet.absoluteFill, styles.frost]} />
           <View style={[styles.headerContent, { paddingTop: insets.top + WEB_TAB_BAR_HEIGHT }]}>
             {header}
@@ -157,6 +168,9 @@ const makeStyles = (colors: Palette) =>
       flex: 1,
       backgroundColor: colors.background,
     },
+    fill: {
+      flex: 1,
+    },
     content: {
       gap: spacing.xl,
       width: '100%',
@@ -171,8 +185,9 @@ const makeStyles = (colors: Palette) =>
       overflow: 'hidden',
     },
     frost: {
-      backgroundColor: Platform.OS === 'android' ? colors.background : 'transparent',
-      opacity: Platform.OS === 'android' ? 0.92 : 1,
+      backgroundColor:
+        Platform.OS === 'android' && !androidCanBlur ? colors.background : 'transparent',
+      opacity: Platform.OS === 'android' && !androidCanBlur ? 0.92 : 1,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },

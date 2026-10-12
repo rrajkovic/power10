@@ -98,6 +98,24 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Only athletes appear in the list (not other coaches), and not members who are locked out of the team. **Decided**
 - Built: logging for yourself with photos, coaches logging for athletes, and editing or deleting a workout (from the Feed). **Decided**
 
+### Changing a workout afterwards
+
+- **An athlete changes the numbers** (activity, intensity, time, distance or day) of a workout that has been through the photo check or a coach's review: it goes to the coaches' list as **Corrected by athlete**, every time, and a coach decides. Changing only the notes doesn't do this. **Decided**
+- A workout that was never checked (no photo, not reviewed) can be edited freely: there's no verification to undo. **Decided**
+- **An admin changes the numbers** of someone's workout: it's verified. **Decided**
+- An admin changing their own workout is treated like any athlete: nobody verifies themselves. **Decided**
+
+### How far back athletes can log and change
+
+- Each team sets two limits for its athletes, on the Team tab ("Rules for athletes", admins only): **Decided**
+  - **Log:** how old a workout can be when it's logged.
+  - **Change or delete:** how old a workout can be and still be edited or deleted.
+- Each limit is one of: **Any time** (the default), **A few days** (today and the last N days; 0 means the same day only), **This week** (Monday to Sunday), **This month**. **Decided**
+- Limits go by the workout's day in the team's time zone. An athlete also can't move a workout to a day they couldn't log. **Decided**
+- Coaches and admins are never limited: they can log, change or delete any workout on any day. An athlete outside the limit is told to ask a coach. **Decided**
+- Confirming a flag ("It's correct") is always allowed, however old the workout is. **Decided**
+- The limits are enforced by the database. The app also follows them (the day picker stops at the limit, Edit and Delete are hidden) so athletes get an explanation instead of an error. **Decided**
+
 ## Roles
 
 - Each team member has one role: **Coach** or **Athlete**. **Decided**
@@ -191,14 +209,19 @@ A member who no longer has a verified email matching the team's domains gets **2
 - A photo that can't be read at all isn't attached to any workout when others were read. If nothing could be read, the athlete types the workout in, the photos stay attached, and the check flags it. **Decided**
 - **Answering a flag:** when one of your workouts is flagged, Home shows "1 workout needs a quick check". The review screen shows what was logged, why it was flagged, and the photos, with two choices: **Decided**
   - **It's correct:** the workout stays flagged, marked **Confirmed by athlete**.
-  - **Fix it:** change the activity, intensity, time or distance. The workout is marked **Corrected by athlete**, credits are recalculated, and the photos are checked again. If the check passes, the flag is gone; if not, it's flagged again and the athlete can still confirm it.
+  - **Fix it:** change the activity, intensity, time or distance. The workout is marked **Corrected by athlete**, credits are recalculated, and it stays in the coaches' list for a decision. (It is not sent through the photo check again.)
   - Either way the athlete can add a short note for the coach.
 - A coach or admin always has the final word. Their **Needs review** list (Team tab) shows every flagged workout with one of three labels: **Waiting for athlete**, **Confirmed by athlete**, **Corrected by athlete**. Answered ones are listed first. Approve makes it verified; Reject stops it counting. **Decided**
 - A coach or admin doesn't have to wait for the athlete. At any point, whatever label the workout has, they can **Approve**, **Reject**, or **Fix the numbers** (change the activity, intensity, time or distance; this saves the fix and approves it in one step). Any of the three settles the workout and removes it from the list. **Decided**
 - An athlete can't mark their own workout verified: the answer is only a signal for the coach. Once a coach has decided, the athlete can't answer again. **Decided**
 - If the AI can't be reached, the check is retried up to 3 times; after that the session stays "pending" for an admin to look at. **Decided**
 - Photos are shrunk on the phone (longest side 1600 px) before upload. **Decided**
-- Not built yet: catching a reused photo (the database supports it, the app doesn't send a fingerprint yet), a limit on how many photo reads one person can trigger, and a background job that retries waiting checks. **Open**
+- **Photo limits:** up to 6 photos per log. As a safety net against abuse, one person can have at most 60 photos read in 24 hours (each read costs money, and adding a photo re-reads the set); past that they're told to type the workout in. Both numbers are settings in the function. **Decided**
+- **Reused photos** are caught during the check after saving, in two steps: **Decided**
+  1. The exact same photo file is already on another workout of the team (compared by fingerprint).
+  2. Another workout's photos read as exactly the same time **and** distance. That can be a coincidence, so only then are the two sets of pictures compared by the AI, and it's flagged only if they show the same picture.
+  Either way the workout is flagged as "Possibly a reused photo", naming the other workout, and a coach decides. Two athletes legitimately sharing one screen (a crew boat) will be flagged too; the coach approves it.
+- Not built yet: a background job that retries waiting checks. **Open**
 
 ## Joining a team
 
@@ -228,7 +251,10 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Anyone on the team can comment. You can delete your own comments; admins can delete any. **Decided**
 - A workout a coach logged for an athlete says "logged by coach". **Decided**
 - The photo-check label (Verified, Checking photo, Flagged, Rejected) is shown only to the workout's athlete and to admins. A rejected workout disappears from everyone else's feed. **Decided**
-- Not built yet: editing a comment, live updates (the feed reloads when you pull down or come back to it), and re-checking the photo when a verified workout's numbers are edited afterwards. **Open**
+- You can edit your own comments; an edited comment says "edited". **Decided**
+- **Live updates:** when a teammate logs or changes a workout, comments or reacts, the Feed (and the totals on Home) update by themselves within a second or so. The exception is someone else deleting something, which shows after your next refresh. **Decided**
+- Deleting a workout also deletes its photo files. (Deleting a whole team or account still leaves files behind; a cleanup job for that comes later.) **Decided**
+- A link straight to a tab (for example a notification pointing at the Feed) opens that tab. Without one, the app opens on Home. **Decided**
 - Push notifications for comments and reactions. **Decided**
 - Users can turn notification types off in settings. **Proposed**
 
@@ -259,6 +285,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Everyone sees everyone's numbers, bars and rank, and their **own** "X to go". **Decided**
 - Only coaches and admins see who else is behind: "X to go" on other people, the grey "behind" look, the orange over-max warning, and AI verification flags. Athletes see a plain scoreboard. **Decided**
 - Athletes do see flags on their **own** workouts, so they can answer them (see "Answering a flag"). They never see anyone else's. **Decided**
+- This is enforced by the database, not just hidden by the app: verification details can't be read from the sessions table at all, only through a function that answers for your own workouts (or everyone's, for admins). A rejected workout is invisible to other athletes. **Decided**
 
 ### Goal cards (Home)
 

@@ -162,7 +162,7 @@ select is(
   2.5::numeric, 'Credits are floored to one decimal (2.57 → 2.5)'
 );
 select is(
-  (select verification_status::text from public.sessions where id = '10000000-0000-0000-0000-000000000001'),
+  (select status::text from public.session_verifications(array['10000000-0000-0000-0000-000000000001'::uuid])),
   'not_needed', 'A self-logged session without photos needs no verification'
 );
 select throws_ok(
@@ -209,8 +209,10 @@ select is(
   10.0::numeric, 'The intensity-specific rule wins over the type''s default rule'
 );
 select is(
-  (select verification_status::text || '/' || (logged_by = '00000000-0000-0000-0000-00000000000c')
-   from public.sessions where id = '10000000-0000-0000-0000-000000000002'),
+  (select v.status::text || '/' || (s.logged_by = '00000000-0000-0000-0000-00000000000c')
+   from public.sessions s
+   join public.session_verifications(array[s.id]) v on v.session_id = s.id
+   where s.id = '10000000-0000-0000-0000-000000000002'),
   'passed/true', 'A session an admin logs for someone else is verified automatically'
 );
 select is(
@@ -231,7 +233,7 @@ select lives_ok(
   'An admin can reject a teammate''s session'
 );
 select is(
-  (select verification_status::text from public.sessions where id = '10000000-0000-0000-0000-000000000001'),
+  (select status::text from public.session_verifications(array['10000000-0000-0000-0000-000000000001'::uuid])),
   'rejected', 'The rejection is saved'
 );
 reset role;

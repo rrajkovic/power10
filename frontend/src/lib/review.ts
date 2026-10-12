@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Database } from './database.types';
-import { requestVerification } from './photos';
 import { progressKey } from './progress';
 import { supabase } from './supabase';
 
@@ -80,7 +79,8 @@ export type Correction = {
   note: string;
 };
 
-// Athlete: "it was wrong, here's the fix". The photos are checked again.
+// Athlete: "it was wrong, here's the fix". It stays with the coaches, marked
+// as corrected.
 export function useCorrectFlagged() {
   const reload = useReload();
   return useMutation({
@@ -96,7 +96,6 @@ export function useCorrectFlagged() {
         note: fix.note.trim() || undefined,
       });
       if (error) throw error;
-      requestVerification(fix.sessionId);
     },
     onSuccess: reload,
   });

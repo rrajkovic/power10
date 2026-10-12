@@ -10,9 +10,14 @@
 
 import { askGemini, MIN_CONFIDENCE, READING_RULES, type Photo } from '../_shared/gemini.ts';
 import { groupPieces, type Piece } from '../_shared/group.ts';
-import { callerClient, corsHeaders, json } from '../_shared/http.ts';
+import { adminClient, callerClient, corsHeaders, json } from '../_shared/http.ts';
 
+// The most photos in one read (one log).
 const MAX_PHOTOS = 6;
+// The most photos one person can have read in 24 hours. Every read costs
+// money, and adding a photo re-reads the whole set, so this is generous:
+// it's a safety net against abuse, not something normal use should reach.
+const DAILY_PHOTO_LIMIT = 60;
 // About 3 MB per photo once decoded; the app shrinks them well below this.
 const MAX_BASE64_LENGTH = 4_000_000;
 
@@ -56,6 +61,26 @@ Deno.serve(async (req) => {
       .order('sort_order'),
   ]);
   if (types.error || !types.data?.length) return json({ error: 'You’re not on this team.' }, 403);
+
+  // The daily allowance. Counted before asking the AI, so firing off many
+  // requests at once can't get around it.
+  const admin = adminClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const used = await admin
+    .from('photo_reads')
+    .select('photo_count')
+    .eq('user_id', caller.userId)
+    .gte('created_at', since);
+  const usedToday = (used.data ?? []).reduce((sum, row) => sum + row.photo_count, 0);
+  if (usedToday + photos.length > DAILY_PHOTO_LIMIT) {
+    return json(
+      { error: 'You’ve reached today’s limit for reading photos. You can still type the workout in.' },
+      429,
+    );
+  }
+  await admin
+    .from('photo_reads')
+    .insert({ user_id: caller.userId, team_id: body.team_id, photo_count: photos.length });
 
   const typeNames = types.data.map((type) => type.name);
   const intensityNames = (intensities.data ?? []).map((intensity) => intensity.name);

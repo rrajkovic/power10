@@ -6,6 +6,7 @@ import { PeriodNavigator } from '@/components/home/Leaderboard';
 import { SegmentedBar } from '@/components/home/SegmentedBar';
 import { TeamGlow } from '@/components/home/TeamGlow';
 import { NeedsReview } from '@/components/review/NeedsReview';
+import { AthleteRules } from '@/components/team/AthleteRules';
 import { TabScrollView } from '@/components/TabScrollView';
 import { Headline, Label, Muted } from '@/components/Typography';
 import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
@@ -41,6 +42,7 @@ export default function Team() {
       </View>
       <OnTarget key={currentTeam.id} team={currentTeam} accent={accent} />
       <NeedsReview team={currentTeam} />
+      {currentTeam.isAdmin ? <AthleteRules key={`rules-${currentTeam.id}`} team={currentTeam} /> : null}
       <Muted style={styles.comingSoon}>
         Coming next here: upcoming tests and races, the season’s hit rate, streaks, and members
         and invites.

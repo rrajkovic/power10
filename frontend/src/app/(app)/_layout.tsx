@@ -3,18 +3,39 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { LogWorkoutAccessory, LogWorkoutFloatingButton } from '@/components/LogWorkoutButton';
+import { useLiveUpdates } from '@/lib/feed';
+import { markOpeningPathUsed, openingPath } from '@/lib/openingLink';
+import { useTeams } from '@/lib/teams';
 
+// Links that should open their own tab instead of Home.
+const TAB_PATHS = ['team', 'calendar', 'feed', 'profile'];
 // The bar above the tab bar only exists on iOS 26 and later.
 const hasBottomAccessory = Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) >= 26;
 
 // The system tab bar: Liquid Glass on iOS 26, Material on Android.
 // Tabs appear in the order of the triggers.
 export default function AppLayout() {
+  const { currentTeam } = useTeams();
+  // Reload the feed and totals when a teammate logs, comments or reacts.
+  useLiveUpdates(currentTeam?.id);
+
   // Native tabs always start on their first tab (Team) and ignore the usual
   // "anchor" setting, so open Home ourselves whenever you enter the app.
-  // TODO: skip this when opening a specific tab from a notification or link.
+  // The exception: the app was opened by a link straight to a tab (say, a
+  // notification that points at the Feed). Then go where the link pointed,
+  // even if you had to sign in first.
   useEffect(() => {
-    router.replace('/');
+    let cancelled = false;
+    (async () => {
+      const path = await openingPath();
+      if (cancelled) return;
+      markOpeningPathUsed();
+      // (Typed as a plain string because the path is only known at run time.)
+      router.replace(TAB_PATHS.includes(path) ? (`/${path}` as '/feed') : '/');
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
