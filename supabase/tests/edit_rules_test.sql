@@ -4,7 +4,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(22);
 
 create function pg_temp.new_user(user_id uuid, user_email text, user_name text)
 returns void language sql as $$
@@ -183,6 +183,27 @@ select lives_ok(
   $$ insert into public.sessions (team_id, athlete_id, activity_type_id, session_date, duration_seconds)
      values ((select id from team), '00000000-0000-0000-0000-0000000000a1', (select erg from ids), (select today from ids) - 30, 1800) $$,
   'A coach can log any day for an athlete'
+);
+
+-- ---------------------------------------------------------------------------
+-- Deleting the team takes everything with it, whatever the windows say.
+-- ---------------------------------------------------------------------------
+
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+select throws_ok(
+  $$ select public.delete_team((select id from team)) $$,
+  'Only coaches can delete the team',
+  'An athlete can''t delete the team'
+);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select lives_ok(
+  $$ select public.delete_team((select id from team)) $$,
+  'A coach can, even with workouts too old for athletes to delete'
+);
+reset role;
+select is(
+  (select count(*)::int from public.sessions where team_id = (select id from team)),
+  0, 'Its workouts go with it'
 );
 
 select * from finish();

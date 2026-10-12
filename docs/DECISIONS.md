@@ -253,7 +253,7 @@ A member who no longer has a verified email matching the team's domains gets **2
 - The photo-check label (Verified, Checking photo, Flagged, Rejected) is shown only to the workout's athlete and to admins. A rejected workout disappears from everyone else's feed. **Decided**
 - You can edit your own comments; an edited comment says "edited". **Decided**
 - **Live updates:** when a teammate logs or changes a workout, comments or reacts, the Feed (and the totals on Home) update by themselves within a second or so. The exception is someone else deleting something, which shows after your next refresh. **Decided**
-- Deleting a workout also deletes its photo files. (Deleting a whole team or account still leaves files behind; a cleanup job for that comes later.) **Decided**
+- Deleting a workout also deletes its photo files, and so does deleting a team. (Deleting an account still leaves files behind; that comes with account deletion.) **Decided**
 - A link straight to a tab (for example a notification pointing at the Feed) opens that tab. Without one, the app opens on Home. **Decided**
 - Push notifications for comments and reactions. **Decided**
 - Users can turn notification types off in settings. **Proposed**
@@ -295,6 +295,16 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Coaches and admins also see "5 / 13 on target · 8 still to go — See who ›" at the bottom of that card. Athletes don't. **Decided**
 - The on-target count ("5 / 13 athletes have hit the weekly target") is on the Team tab for everyone; the list of who's still to go (or missed it, for past weeks) is for coaches and admins only. **Decided**
 
+## Members and invites
+
+Opened from the Team tab by anyone on the team.
+
+- **Roster:** coaches, then athletes, with an "Admin" badge on athlete admins. Everyone can see it. **Decided**
+- **Managing a member** (tap them): Make coach, Make athlete, Make admin, Remove admin, Remove from team. Only the buttons that person is allowed to use are shown, following the Roles rules above; the database enforces them either way. Removing asks twice. A removed member's workouts stay in the team's history. **Decided**
+- **Invite codes** (admins only): one for athletes and one for coaches, with Share (the phone's share sheet; on the web it copies) and Reset. Resetting makes the old code stop working at once and doesn't affect people already on the team. The share message tells the person to open the app, choose "Join a team" and enter the code. **Decided**
+- **Leave this team:** at the bottom, for everyone; asks twice. Afterwards the app moves to your next team, or to "join or create a team". **Decided**
+- Not built yet: invite links that open the app directly (codes only for now), and showing members who are locked out for not having a school email. **Open**
+
 ## Team settings
 
 Opened from the Team tab by coaches and admins. Five sections; every change is saved on its own, straight away.
@@ -305,6 +315,7 @@ Opened from the Team tab by coaches and admins. Five sections; every change is s
 - **Targets:** how often (week, 2 weeks, month); required credits; an optional maximum; an optional minimum from one activity ("at least 3 credits of Lift"); and the current season's name and dates. **Decided**
 - **Taper, race and test weeks:** the Targets section lists the current period and the next eleven. Any of them can be given its own target, labelled Taper, Race, Test or a name of your choice, with its own required credits and optional maximum. They can be set as far ahead as the list goes, changed, or put back to the usual target. The special target replaces the usual one for that period only (including the maximum: leave it empty for none). Home, the leaderboard and "who's on target" all use it automatically. **Decided**
 - **Rules:** how far back athletes can log, and change or delete (moved here from the Team tab). **Decided**
+- **Delete team:** at the bottom of the Team section, shown only to people with coach rights (coaches; or athlete admins while the team has no coach). It says how many members lose access, and the team's name has to be typed in before the button works. It removes the team, every workout, comment, target and setting, and the photo files. It can't be undone. **Decided**
 - Not built yet: changing the order activities appear in the logging form, bringing an archived activity back, a maximum per activity, a special week's target for one activity, and several seasons. **Open**
 
 ## Team tab

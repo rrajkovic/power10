@@ -21,6 +21,7 @@ Power10 started as a web app for Penn Lightweight Rowing, where about 40 athlete
 - **Flag review:** athletes confirm or correct a flagged workout; coaches approve, reject or fix it.
 - **Feed:** the team's workouts with photos, emoji reactions and comments; filter to yourself or chosen teammates; edit or delete your own.
 - **Team settings:** admins set the team's name and colors, activities and intensities, credit rules, targets, and how far back athletes can log or edit.
+- **Members and invites:** the roster, changing roles, removing people, leaving a team, and shareable invite codes.
 - **Look and feel:** light and dark themes, and each team's own colors.
 
 **Planned**

@@ -5,6 +5,7 @@ import { fontSize, spacing, type Palette } from '@/constants/theme';
 import { isTimeZone, parseHexColor, teamWrites } from '@/lib/settings';
 import type { MyTeam } from '@/lib/teams';
 import { useThemedStyles } from '@/lib/theme';
+import { DeleteTeam } from './DeleteTeam';
 import { Card, SavedField } from './parts';
 import type { Save } from './types';
 
@@ -67,6 +68,8 @@ export function TeamSection({ team, save }: { team: MyTeam; save: Save }) {
           check={(text) => (isTimeZone(text) ? null : 'That isn’t a time zone name')}
         />
       </Card>
+
+      <DeleteTeam team={team} />
     </>
   );
 }

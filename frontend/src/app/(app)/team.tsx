@@ -43,6 +43,14 @@ export default function Team() {
       </View>
       <OnTarget key={currentTeam.id} team={currentTeam} accent={accent} />
       <NeedsReview team={currentTeam} />
+      <View style={styles.settingsLink}>
+        <Button title="Members" variant="secondary" onPress={() => router.push('/members')} />
+        <Muted style={styles.small}>
+          {currentTeam.isAdmin
+            ? 'The roster, roles, and invite codes for bringing people in.'
+            : 'Everyone on the team.'}
+        </Muted>
+      </View>
       {currentTeam.isAdmin ? (
         <View style={styles.settingsLink}>
           <Button title="Team settings" variant="secondary" onPress={() => router.push('/team-settings')} />
@@ -52,8 +60,7 @@ export default function Team() {
         </View>
       ) : null}
       <Muted style={styles.comingSoon}>
-        Coming next here: upcoming tests and races, the season’s hit rate, streaks, and members
-        and invites.
+        Coming next here: upcoming tests and races, the season’s hit rate, and streaks.
       </Muted>
     </TabScrollView>
   );
