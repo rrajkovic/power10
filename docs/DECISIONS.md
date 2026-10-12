@@ -295,6 +295,18 @@ A member who no longer has a verified email matching the team's domains gets **2
 - Coaches and admins also see "5 / 13 on target · 8 still to go — See who ›" at the bottom of that card. Athletes don't. **Decided**
 - The on-target count ("5 / 13 athletes have hit the weekly target") is on the Team tab for everyone; the list of who's still to go (or missed it, for past weeks) is for coaches and admins only. **Decided**
 
+## Team settings
+
+Opened from the Team tab by coaches and admins. Five sections; every change is saved on its own, straight away.
+
+- **Team:** name, main color and optional second color (tap a preset swatch, or type any color as a hex code like `#0033A0`), time zone (typed as a name like `America/New_York`). **Decided**
+- **Activities:** rename, add, archive, and switch "needs a photo" on or off, for activities and for intensities. Archiving takes something out of the logging form; workouts already logged keep it. The Custom activity can't be archived. A new activity starts at 1 credit per 10 minutes. **Decided**
+- **Credits:** each activity has a usual rule and can have a different rule for any intensity. A rule is per time (credits for every N minutes), per session, or per distance (credits for every N km). A new intensity rule starts as a copy of the usual one. A change only affects workouts logged from then on. **Decided**
+- **Targets:** how often (week, 2 weeks, month); required credits; an optional maximum; an optional minimum from one activity ("at least 3 credits of Lift"); and the current season's name and dates. **Decided**
+- **Taper, race and test weeks:** the Targets section lists the current period and the next eleven. Any of them can be given its own target, labelled Taper, Race, Test or a name of your choice, with its own required credits and optional maximum. They can be set as far ahead as the list goes, changed, or put back to the usual target. The special target replaces the usual one for that period only (including the maximum: leave it empty for none). Home, the leaderboard and "who's on target" all use it automatically. **Decided**
+- **Rules:** how far back athletes can log, and change or delete (moved here from the Team tab). **Decided**
+- Not built yet: changing the order activities appear in the logging form, bringing an archived activity back, a maximum per activity, a special week's target for one activity, and several seasons. **Open**
+
 ## Team tab
 
 First version, top to bottom:

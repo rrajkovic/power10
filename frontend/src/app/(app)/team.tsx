@@ -1,12 +1,13 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/Avatar';
+import { Button } from '@/components/Button';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { PeriodNavigator } from '@/components/home/Leaderboard';
 import { SegmentedBar } from '@/components/home/SegmentedBar';
 import { TeamGlow } from '@/components/home/TeamGlow';
 import { NeedsReview } from '@/components/review/NeedsReview';
-import { AthleteRules } from '@/components/team/AthleteRules';
 import { TabScrollView } from '@/components/TabScrollView';
 import { Headline, Label, Muted } from '@/components/Typography';
 import { fontSize, fontWeight, radius, spacing, type Palette } from '@/constants/theme';
@@ -42,7 +43,14 @@ export default function Team() {
       </View>
       <OnTarget key={currentTeam.id} team={currentTeam} accent={accent} />
       <NeedsReview team={currentTeam} />
-      {currentTeam.isAdmin ? <AthleteRules key={`rules-${currentTeam.id}`} team={currentTeam} /> : null}
+      {currentTeam.isAdmin ? (
+        <View style={styles.settingsLink}>
+          <Button title="Team settings" variant="secondary" onPress={() => router.push('/team-settings')} />
+          <Muted style={styles.small}>
+            Name and colors, activities, credit rules, targets, and rules for athletes.
+          </Muted>
+        </View>
+      ) : null}
       <Muted style={styles.comingSoon}>
         Coming next here: upcoming tests and races, the season’s hit rate, streaks, and members
         and invites.
@@ -181,6 +189,10 @@ const makeStyles = (colors: Palette) =>
       fontSize: fontSize.sm,
       fontWeight: fontWeight.semibold,
       color: colors.textMuted,
+    },
+    settingsLink: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.xl,
     },
     comingSoon: {
       paddingHorizontal: spacing.xl,

@@ -21,7 +21,7 @@ const OPTIONS: { value: TimeWindow; label: string }[] = [
 // Used when "A few days" is picked before a number is typed.
 const DEFAULT_DAYS = 3;
 
-// Team tab, admins only: how far back athletes can log a workout, and how
+// Team settings, admins only: how far back athletes can log a workout, and how
 // long they can change or delete one. Coaches and admins are never limited.
 export function AthleteRules({ team }: { team: MyTeam }) {
   const styles = useThemedStyles(makeStyles);
@@ -130,8 +130,7 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     card: {
       gap: spacing.lg,
-      marginHorizontal: spacing.xl,
-      padding: spacing.xl,
+      padding: spacing.lg,
       borderRadius: radius.lg,
       backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,

@@ -71,6 +71,7 @@ function RootNavigator() {
         <Stack.Screen name="log" options={{ presentation: 'modal' }} />
         <Stack.Screen name="review" options={{ presentation: 'modal' }} />
         <Stack.Screen name="session/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="team-settings" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={stage === 'no-team'}>
         <Stack.Screen name="(onboarding)" />
